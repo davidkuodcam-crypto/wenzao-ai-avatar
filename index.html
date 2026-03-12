@@ -109,7 +109,7 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。你的名字叫做『美智』。當使用者詢問你的名字時，請務必回答『美智』。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。請優先以此提示詞設定的身分與名字回答。";
+        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。你的名字叫做『美智』。當使用者詢問你的名字時，請務必回答『美智』。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。";
         let openingPhrase = "您好！我是美智，文藻的 AI 虛擬助教，有什麼我可以幫忙的嗎？";
 
         // 表情控制變數
@@ -159,7 +159,7 @@
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace(/[=-]{3}\s*開場詞\s*[=-]{3}/, '').trim();
                         // 修正關鍵：將名字「美智」的指令置於提示詞的最前方，確保 AI 優先讀取
-                        systemPromptText = "你的唯一名字是『美智』。請記住：『文藻AI虛擬助教』只是你的職稱職位，並非你的名字。當被問及姓名時，請回答『美智』。" + parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
+                        systemPromptText = "你的唯一名字是『美智』。請記住：『文藻AI虛擬助教』只是你的職稱職位，並非你的名字。當被問及姓名時，請回答『美智』。" + parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
                     }
@@ -465,7 +465,8 @@
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
-            const fullSystemInstruction = `${systemPromptText}\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  \"reply\": \"你的回覆內容\",\n  \"expression\": \"情緒(neutral, happy, angry, sad, relaxed, surprised)\",\n  \"specialAction\": \"動作(none, blink, blinkLeft, blinkRight, aa)\",\n  \"actionDuration\": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+            // 修正關鍵：在此處強制規定尋找答案的嚴格順序，解決 AI 隨機回答的行為
+            const fullSystemInstruction = `${systemPromptText}\n\n【回答資料來源優先順序】\n1. 優先使用下方的【知識庫內容】來回答。\n2. 若知識庫中找不到答案，請務必使用 Google Search 工具搜尋網路資訊。\n3. 若網路上也找不到，再使用你的內建知識庫。\n4. 若以上皆無明確資訊（尤其是學校科系相關問題），請誠實回答「我不知道」，絕不可自行編造。\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  \"reply\": \"你的回覆內容\",\n  \"expression\": \"情緒(neutral, happy, angry, sad, relaxed, surprised)\",\n  \"specialAction\": \"動作(none, blink, blinkLeft, blinkRight, aa)\",\n  \"actionDuration\": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
 
             try {
                 const response = await fetchWithBackoff(`/api/chat`, {
