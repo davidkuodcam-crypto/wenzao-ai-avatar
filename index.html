@@ -2,12 +2,14 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 針對行動裝置優化：禁止縮放，防止 iOS 點擊輸入框時自動放大畫面 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VRM 1.0 虛擬角色自動檢視器</title>
     <!-- 引入 Tailwind CSS 作為 UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #1a202c; }
+        /* 加入 touch-action: none 防止手機滑動時觸發下拉更新或返回手勢 */
+        body { margin: 0; overflow: hidden; background-color: #1a202c; touch-action: none; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         .pointer-events-auto { pointer-events: auto; }
@@ -32,18 +34,23 @@
     <!-- UI 介面層 -->
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
         <!-- 對話氣泡窗 (預設隱藏) -->
-        <div id="chat-bubble" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/20 max-w-lg w-full hidden pointer-events-auto transition-all duration-300 z-10">
-            <p id="chat-text" class="text-sm leading-relaxed"></p>
+        <!-- 針對手機調整寬度：w-[calc(100%-2rem)] 確保左右留白 -->
+        <div id="chat-bubble" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/20 max-w-lg w-[calc(100%-2rem)] sm:w-full hidden pointer-events-auto transition-all duration-300 z-10">
+            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
+            <p id="chat-text" class="text-base leading-relaxed"></p>
         </div>
 
         <!-- 底部中央對話輸入框 -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-lg pointer-events-auto flex gap-2 z-10">
-            <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-sm" />
-            <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-sm shrink-0">發送</button>
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex gap-2 z-10">
+            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
+            <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-base" />
+            <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-base shrink-0">發送</button>
         </div>
 
         <div class="flex justify-between items-end w-full">
-            <div class="bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex flex-col gap-3">
+            
+            <!-- 左下角：AI 虛擬助教面板 (目前隱藏。日後若需開啟，請將 class 開頭的 "hidden" 改回 "flex") -->
+            <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <h1 class="text-lg font-bold text-blue-400">AI 虛擬助教</h1>
                     <div class="flex items-center gap-3">
@@ -63,14 +70,15 @@
                 <div id="error-status" class="mt-3 text-xs text-red-400 hidden text-center"></div>
             </div>
 
-            <!-- 操作說明 -->
-            <div class="bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
+            <!-- 右下角：操作說明面板 (目前隱藏。日後若需開啟，請移除 class 中的 "hidden") -->
+            <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
                 <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
                     <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉視角 / <span class="text-blue-400 font-bold">右鍵</span> : 平移</li>
                     <li><span class="text-blue-400 font-bold">滾輪</span> : 縮放</li>
                 </ul>
             </div>
+
         </div>
     </div>
 
@@ -270,10 +278,12 @@
 
         // --- 載入 VRM 模型 ---
         function loadVRM(url) {
+            // 因為面板已隱藏，如果直接用原來的 loadingUI 會找不到或者顯示不出來
+            // 由於原 UI 在左下角被隱藏了，我們仍然保留邏輯不報錯，只是不顯示
             const loadingUI = document.getElementById('loading-status');
             const errorUI = document.getElementById('error-status');
-            loadingUI.classList.remove('hidden');
-            errorUI.classList.add('hidden');
+            if(loadingUI) loadingUI.classList.remove('hidden');
+            if(errorUI) errorUI.classList.add('hidden');
 
             const loader = new GLTFLoader();
             loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -308,7 +318,7 @@
                     scene.add(vrm.scene);
                     currentVrm = vrm;
 
-                    loadingUI.classList.add('hidden');
+                    if(loadingUI) loadingUI.classList.add('hidden');
                     console.log('模型自動載入成功!');
                     
                     triggerOpeningPhrase();
@@ -316,9 +326,11 @@
                 undefined,
                 (error) => {
                     console.error('模型載入失敗:', error);
-                    loadingUI.classList.add('hidden');
-                    errorUI.textContent = '無法載入預設模型 AvatarSample_C.vrm，請確認檔案路徑。';
-                    errorUI.classList.remove('hidden');
+                    if(loadingUI) loadingUI.classList.add('hidden');
+                    if(errorUI) {
+                        errorUI.textContent = '無法載入預設模型 AvatarSample_C.vrm，請確認檔案路徑。';
+                        errorUI.classList.remove('hidden');
+                    }
                 }
             );
         }
@@ -389,9 +401,13 @@
         const sendBtn = document.getElementById('send-btn');
         const chatBubble = document.getElementById('chat-bubble');
         const chatText = document.getElementById('chat-text');
+        
+        // 注意：原先面板被隱藏了，所以如果直接操作 statusLight，不會在畫面上看到燈號
+        // 但我們仍保留內部狀態切換避免程式出錯
         const statusLight = document.getElementById('status-light');
 
         function setStatus(status) {
+            if (!statusLight) return;
             statusLight.className = 'w-3 h-3 rounded-full transition-colors ';
             if (status === 'connecting') {
                 statusLight.className += 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse';
