@@ -50,7 +50,7 @@
                 <div class="flex items-center justify-between">
                     <h1 class="text-lg font-bold text-blue-400">文藻 AI 虛擬助教</h1>
                 </div>
-                <p class="text-xs text-gray-300">支援語音對話與表情連動的 3D 互動展示。</p>
+                <p class="text-xs text-gray-300">支援語音對話與表情連動。正在使用 Gemini 2.5 Flash。</p>
                 
                 <div id="loading-status" class="mt-2 text-xs text-yellow-400 hidden flex items-center justify-center">
                     <svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -66,8 +66,7 @@
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
                 <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
-                    <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉視角</li>
-                    <li><span class="text-blue-400 font-bold">右鍵</span> : 平移視角</li>
+                    <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉 | <span class="text-blue-400 font-bold">右鍵</span> : 平移</li>
                     <li><span class="text-blue-400 font-bold">滾輪</span> : 縮放視角</li>
                 </ul>
             </div>
@@ -142,6 +141,8 @@
 
             // 8. 自動載入模型 (偵測環境以避免預覽錯誤)
             let modelPath = './AvatarSample_C.vrm';
+            
+            // 如果在 blob 預覽環境，直接攔截並顯示提示
             if (window.location.protocol === 'blob:' || window.location.protocol === 'data:') {
                 const errorUI = document.getElementById('error-status');
                 document.getElementById('loading-status').classList.add('hidden');
@@ -154,7 +155,6 @@
             loadVRM(modelPath);
         }
 
-        // --- 建立豐富的 3D 背景環境 ---
         function setupEnvironment() {
             const ambientLight = new THREE.HemisphereLight(0xffffff, 0x999999, 0.8);
             scene.add(ambientLight);
@@ -162,13 +162,7 @@
             const directionalLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
             directionalLight.position.set(2, 5, 3);
             directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
             scene.add(directionalLight);
-
-            const fillLight = new THREE.DirectionalLight(0xcceeff, 1.2);
-            fillLight.position.set(-2, 2, 2);
-            scene.add(fillLight);
 
             const floorGeometry = new THREE.PlaneGeometry(50, 50);
             const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x8a95a5, roughness: 0.6 });
@@ -178,13 +172,12 @@
             scene.add(floor);
 
             const pedestalGeometry = new THREE.CylinderGeometry(0.8, 1, 0.1, 32);
-            const pedestalMaterial = new THREE.MeshStandardMaterial({ color: 0xdbe3ea, roughness: 0.3 });
+            const pedestalMaterial = new THREE.MeshStandardMaterial({ color: 0xdbe3ea });
             const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
             pedestal.position.y = 0.05;
             pedestal.receiveShadow = true;
             scene.add(pedestal);
 
-            // 漂浮粒子系統
             const particleCount = 200;
             const particleGeometry = new THREE.BufferGeometry();
             const positions = new Float32Array(particleCount * 3);
@@ -198,7 +191,6 @@
             scene.add(particles);
         }
 
-        // --- 載入 VRM 模型 ---
         function loadVRM(url) {
             const loadingUI = document.getElementById('loading-status');
             const errorUI = document.getElementById('error-status');
@@ -213,15 +205,11 @@
                 if (currentVrm) scene.remove(currentVrm.scene);
 
                 VRMUtils.removeUnnecessaryVertices(gltf.scene);
-                // 修正棄用警告
                 VRMUtils.combineSkeletons(gltf.scene);
 
                 vrm.scene.traverse((obj) => {
                     obj.frustumCulled = false;
-                    if (obj.isMesh) {
-                        obj.castShadow = true;
-                        obj.receiveShadow = true;
-                    }
+                    if (obj.isMesh) obj.castShadow = obj.receiveShadow = true;
                 });
 
                 if (vrm.humanoid) {
@@ -237,27 +225,23 @@
                 currentVrm = vrm;
                 loadingUI.classList.add('hidden');
             }, undefined, (error) => {
-                console.error(error);
                 loadingUI.classList.add('hidden');
-                errorUI.textContent = '模型載入失敗，請確認檔案路徑。';
+                errorUI.textContent = '模型載入失敗。';
                 errorUI.classList.remove('hidden');
             });
         }
 
-        // --- 動畫迴圈 ---
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
             const time = clock.getElapsedTime();
 
             if (currentVrm) {
-                // 1. 自然呼吸
                 if (currentVrm.humanoid) {
                     const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
                     if (chest) chest.rotation.x = Math.sin(time * 1.5) * 0.015;
                 }
 
-                // 2. 表情控制
                 if (currentVrm.expressionManager) {
                     expressionTimer += delta;
                     if (expressionTimer > 4.0) {
@@ -272,17 +256,14 @@
                     currentVrm.expressionManager.setValue(currentExpression, 1.0 - expressionBlend);
                     currentVrm.expressionManager.setValue(targetExpression, expressionBlend);
 
-                    // 特殊動作
                     if (specialActionTimer > 0 && activeSpecialAction) {
                         specialActionTimer -= delta;
                         currentVrm.expressionManager.setValue(activeSpecialAction, 1.0);
                     }
 
-                    // 唇形同步
                     if (isSpeaking && activeSpecialAction !== 'aa') {
                         lipSyncTimer += delta * 15;
-                        const mouthOpenness = (Math.sin(lipSyncTimer) + 1) / 2; 
-                        currentVrm.expressionManager.setValue('aa', mouthOpenness * 0.8);
+                        currentVrm.expressionManager.setValue('aa', (Math.sin(lipSyncTimer) + 1) / 2 * 0.7);
                     }
                 }
                 currentVrm.update(delta);
@@ -298,7 +279,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- 對話邏輯 ---
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const chatBubble = document.getElementById('chat-bubble');
@@ -310,50 +290,58 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `<span class="text-blue-300">你：</span>${text}<br><span class="text-gray-400">正在思考中...</span>`;
+            chatText.innerHTML = `你：${text}<br><span class="text-gray-400">正在思考中...</span>`;
 
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
             try {
-                // 發送請求至伺服器代理端 (api/chat.js)
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemInstruction: "你是一個活潑的虛擬助教，請用繁體中文以口語化、生動且簡短的語氣回答（盡量一到兩句話即可）。若使用者要求你做表情(例如生氣、驚訝)，請配合並設定在屬性中。"
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    reply: { type: "STRING" },
+                                    expression: { type: "STRING" },
+                                    specialAction: { type: "STRING" },
+                                    actionDuration: { type: "NUMBER" }
+                                },
+                                required: ["reply", "expression", "specialAction", "actionDuration"]
+                            }
+                        }
                     })
                 });
 
                 if (!response.ok) throw new Error('API 連線失敗');
 
-                const aiResponse = await response.json();
-                conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify(aiResponse) }] });
+                const res = await response.json();
+                conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify(res) }] });
                 
-                // 更新表情
-                if (expressions.includes(aiResponse.expression)) {
+                if (expressions.includes(res.expression)) {
                     currentExpression = targetExpression;
-                    targetExpression = aiResponse.expression;
+                    targetExpression = res.expression;
                     expressionBlend = 0;
-                    expressionTimer = -10.0; 
+                    expressionTimer = -5.0; 
                 }
-                // 設定特殊動作
-                if (aiResponse.specialAction && aiResponse.specialAction !== 'none') {
-                    activeSpecialAction = aiResponse.specialAction;
-                    specialActionTimer = aiResponse.actionDuration || 3;
+                if (res.specialAction && res.specialAction !== 'none') {
+                    activeSpecialAction = res.specialAction;
+                    specialActionTimer = res.actionDuration || 3;
                 }
 
-                chatText.innerHTML = `<span class="text-green-300">助教：</span>${aiResponse.reply}`;
-                speakAndLipSync(aiResponse.reply);
+                chatText.innerHTML = `助教：${res.reply}`;
+                speak(res.reply);
 
             } catch (error) {
-                console.error(error);
-                chatText.innerHTML = `<span class="text-red-400">無法連線至 AI 服務。請確保已在 Vercel 設定 GEMINI_API_KEY。</span>`;
+                chatText.innerHTML = `<span class="text-red-400">連線失敗: ${error.message}</span>`;
                 conversationHistory.pop();
             }
         }
 
-        function speakAndLipSync(text) {
+        function speak(text) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'zh-TW';
