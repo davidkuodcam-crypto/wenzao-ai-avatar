@@ -39,17 +39,18 @@
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
         
         <!-- 底部中央對話整合容器 (極高透明度薄玻璃質感，包覆文字與輸入框) -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-black/5 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white/20 z-10 transition-all duration-300">
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white/30 z-10 transition-all duration-300">
             
             <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
             <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
-                <p id="chat-text" class="text-lg text-white font-medium leading-relaxed drop-shadow"></p>
+                <!-- 文字顏色修改為深藍色 text-blue-900 -->
+                <p id="chat-text" class="text-lg text-blue-900 font-bold leading-relaxed drop-shadow-sm"></p>
             </div>
 
             <!-- 底部對話輸入框 -->
             <div class="flex gap-2 w-full">
-                <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-black/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:border-white/40 focus:bg-black/30 shadow-inner text-base transition-colors" />
-                <button id="send-btn" class="bg-blue-600/60 hover:bg-blue-500/80 backdrop-blur text-white px-5 py-3 rounded-xl shadow transition-colors font-bold text-base shrink-0">發送</button>
+                <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-white/20 text-blue-900 placeholder-blue-800/50 px-4 py-3 rounded-xl border border-blue-900/10 focus:outline-none focus:border-blue-900/30 focus:bg-white/40 shadow-inner text-base transition-colors font-medium" />
+                <button id="send-btn" class="bg-blue-800/70 hover:bg-blue-700/80 backdrop-blur text-white px-5 py-3 rounded-xl shadow transition-colors font-bold text-base shrink-0">發送</button>
             </div>
         </div>
 
@@ -101,8 +102,8 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        // [修正1]：強化 Prompt，賦予實體意識，並加入「誠實原則」
-        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應（如「好的，我閉上了！」），並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（如學校科系歸屬等），請務必誠實回答「我不知道」，絕對不可自行編造。";
+        // [修正1]：強化 Prompt，強調誠實原則與實體意識
+        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。";
         let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
 
         // 表情控制變數
@@ -147,7 +148,7 @@
                     const parts = fullPromptText.split('=== 提示詞 ===');
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
-                        // 確保如果外部載入 prompt.txt，也能維持實體意識與誠實原則
+                        // 確保如果外部載入 prompt.txt，也能維持誠實原則
                         systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
@@ -167,7 +168,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `${openingPhrase}`; // 移除「角色：」前綴
+            chatText.innerHTML = `${openingPhrase}`;
             
             speakAndLipSync(openingPhrase);
             
@@ -445,12 +446,12 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
-            // 將使用者的文字加上淡淡的樣式，區隔 AI 與使用者的對話，並移除「角色：」
-            chatText.innerHTML = `<span class="text-blue-200 text-sm font-normal">你：${text}</span><br><span class="text-white/60 text-sm font-normal animate-pulse">正在思考中...</span>`;
+            // 修改使用者提示樣式
+            chatText.innerHTML = `<span class="text-blue-800 text-sm opacity-70">你：${text}</span><br><span class="text-blue-900/60 text-sm animate-pulse">正在思考中...</span>`;
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
-            const fullSystemInstruction = `${systemPromptText}\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  "reply": "你的回覆內容",\n  "expression": "情緒(neutral, happy, angry, sad, relaxed, surprised)",\n  "specialAction": "動作(none, blink, blinkLeft, blinkRight, aa)",\n  "actionDuration": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+            const fullSystemInstruction = `${systemPromptText}\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  \"reply\": \"你的回覆內容\",\n  \"expression\": \"情緒(neutral, happy, angry, sad, relaxed, surprised)\",\n  \"specialAction\": \"動作(none, blink, blinkLeft, blinkRight, aa)\",\n  \"actionDuration\": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
 
             try {
                 const response = await fetchWithBackoff(`/api/chat`, {
@@ -472,11 +473,13 @@
                 const aiText = data.candidates[0].content.parts[0].text;
                 let replyText = aiText;
                 
+                // [修正點]：更強大的 Regex 提取 JSON，並優先顯示 reply 欄位
                 const jsonMatch = aiText.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
                     try {
                         const aiResponse = JSON.parse(jsonMatch[0]);
+                        // 確保只提取 reply 文字
                         replyText = aiResponse.reply || "（沒有回覆文字）";
                         
                         if (expressions.includes(aiResponse.expression)) {
@@ -489,12 +492,15 @@
                             specialActionTimer = aiResponse.actionDuration || 3;
                         }
                     } catch (e) {
-                        console.warn("JSON 解析失敗:", e);
+                        console.warn("JSON 解析失敗，嘗試清除符號顯示純文字:", e);
+                        // 如果解析失敗，嘗試過濾掉大括號和欄位名稱以顯示內容
+                        replyText = aiText.replace(/\{"reply":/g, "").replace(/"expression":.*/g, "").replace(/[{}"]/g, "").trim();
                     }
                 }
 
                 setStatus('success');
-                chatText.innerHTML = `${replyText}`; // 移除「角色：」前綴，只顯示回覆內容
+                // 更新顯示文字
+                chatText.innerHTML = `${replyText}`;
                 speakAndLipSync(replyText);
                 
                 conversationHistory.push({ role: "model", parts: [{ text: jsonMatch ? jsonMatch[0] : aiText }] });
@@ -502,7 +508,7 @@
             } catch (error) {
                 console.error("發送訊息失敗:", error);
                 setStatus('error');
-                chatText.innerHTML = `<span class="text-red-400">連線失敗，請稍後再試。</span>`;
+                chatText.innerHTML = `<span class="text-red-600 font-bold">連線失敗，請稍後再試。</span>`;
                 conversationHistory.pop();
             }
         }
@@ -524,8 +530,6 @@
             window.keepAliveUtterances.push(utterance);
             
             utterance.lang = 'zh-TW';
-            
-            // 強制設定，繞過 iOS 有時因為 onstart 沒觸發而導致嘴巴不動的 Bug
             isSpeaking = true; 
             
             utterance.onstart = () => { isSpeaking = true; };
@@ -540,12 +544,10 @@
                 isSpeaking = false;
             };
             
-            // 稍等一瞬再發送，避免 iOS 在取消和播放之間卡住
             setTimeout(() => {
                 window.speechSynthesis.speak(utterance);
             }, 50);
 
-            // 雙重保險備用計時器：如果語音其實已經停止（或被 iOS 吃掉），要確保嘴巴停下來
             let confirmStopCount = 0;
             speechCheckInterval = setInterval(() => {
                 if (!window.speechSynthesis.speaking) {
@@ -563,7 +565,6 @@
 
         function unlockAudioForIOS() {
             if (window.speechSynthesis.resume) window.speechSynthesis.resume();
-            
             const silentUtterance = new SpeechSynthesisUtterance(' ');
             silentUtterance.volume = 0;
             silentUtterance.rate = 2;
@@ -576,12 +577,10 @@
             document.removeEventListener('touchend', initialUnlock);
             document.removeEventListener('click', initialUnlock);
         };
-        // 加入 touchend，對 iOS 更有效
         document.addEventListener('touchstart', initialUnlock, { once: true });
         document.addEventListener('touchend', initialUnlock, { once: true });
         document.addEventListener('click', initialUnlock, { once: true });
 
-        // 隨時點擊發送都能打斷講話
         sendBtn.addEventListener('click', () => {
             window.speechSynthesis.cancel();
             isSpeaking = false;
