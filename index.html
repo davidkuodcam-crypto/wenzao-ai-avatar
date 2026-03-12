@@ -43,8 +43,8 @@
             
             <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
             <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
-                <!-- 文字顏色修改為深藍色 text-blue-900 -->
-                <p id="chat-text" class="text-lg text-blue-900 font-bold leading-relaxed drop-shadow-sm"></p>
+                <!-- 深藍色文字且粗細改為 font-medium -->
+                <p id="chat-text" class="text-lg text-blue-900 font-medium leading-relaxed drop-shadow-sm"></p>
             </div>
 
             <!-- 底部對話輸入框 -->
@@ -102,7 +102,7 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        // [修正1]：強化 Prompt，強調誠實原則與實體意識
+        // 強化實體意識與誠實原則
         let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。";
         let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
 
@@ -148,7 +148,6 @@
                     const parts = fullPromptText.split('=== 提示詞 ===');
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
-                        // 確保如果外部載入 prompt.txt，也能維持誠實原則
                         systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
@@ -168,7 +167,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `${openingPhrase}`;
+            chatText.innerHTML = `${openingPhrase}`; // 已移除「角色：」
             
             speakAndLipSync(openingPhrase);
             
@@ -284,7 +283,6 @@
             scene.add(particles);
         }
 
-        // --- 載入 VRM 模型 ---
         function loadVRM(url) {
             const loadingUI = document.getElementById('loading-status');
             const errorUI = document.getElementById('error-status');
@@ -298,9 +296,7 @@
                 url,
                 (gltf) => {
                     const vrm = gltf.userData.vrm;
-                    if (currentVrm) {
-                        scene.remove(currentVrm.scene);
-                    }
+                    if (currentVrm) scene.remove(currentVrm.scene);
                     VRMUtils.removeUnnecessaryVertices(gltf.scene);
                     VRMUtils.removeUnnecessaryJoints(gltf.scene);
 
@@ -326,7 +322,6 @@
 
                     if(loadingUI) loadingUI.classList.add('hidden');
                     console.log('模型自動載入成功!');
-                    
                     triggerOpeningPhrase();
                 },
                 undefined,
@@ -466,20 +461,17 @@
 
                 const data = await response.json();
                 
-                if (data.error) {
-                    throw new Error(data.error);
-                }
+                if (data.error) throw new Error(data.error);
 
                 const aiText = data.candidates[0].content.parts[0].text;
                 let replyText = aiText;
                 
-                // [修正點]：更強大的 Regex 提取 JSON，並優先顯示 reply 欄位
+                // 強大的 Regex 提取 JSON，並優先顯示 reply 欄位
                 const jsonMatch = aiText.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
                     try {
                         const aiResponse = JSON.parse(jsonMatch[0]);
-                        // 確保只提取 reply 文字
                         replyText = aiResponse.reply || "（沒有回覆文字）";
                         
                         if (expressions.includes(aiResponse.expression)) {
@@ -493,13 +485,12 @@
                         }
                     } catch (e) {
                         console.warn("JSON 解析失敗，嘗試清除符號顯示純文字:", e);
-                        // 如果解析失敗，嘗試過濾掉大括號和欄位名稱以顯示內容
                         replyText = aiText.replace(/\{"reply":/g, "").replace(/"expression":.*/g, "").replace(/[{}"]/g, "").trim();
                     }
                 }
 
                 setStatus('success');
-                // 更新顯示文字
+                // 更新顯示文字 (已移除 角色： 前綴)
                 chatText.innerHTML = `${replyText}`;
                 speakAndLipSync(replyText);
                 
@@ -522,9 +513,7 @@
             isSpeaking = false;
             if (speechCheckInterval) clearInterval(speechCheckInterval);
             
-            if (window.speechSynthesis.resume) {
-                window.speechSynthesis.resume();
-            }
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
 
             const utterance = new SpeechSynthesisUtterance(text);
             window.keepAliveUtterances.push(utterance);
@@ -535,9 +524,7 @@
             utterance.onstart = () => { isSpeaking = true; };
             utterance.onend = () => { 
                 isSpeaking = false; 
-                if (window.keepAliveUtterances.length > 20) {
-                    window.keepAliveUtterances.length = 0;
-                }
+                if (window.keepAliveUtterances.length > 20) window.keepAliveUtterances.length = 0;
             };
             utterance.onerror = (e) => {
                 console.warn('語音播放被中斷或發生錯誤:', e);
@@ -581,6 +568,7 @@
         document.addEventListener('touchend', initialUnlock, { once: true });
         document.addEventListener('click', initialUnlock, { once: true });
 
+        // 隨時點擊發送都能打斷講話
         sendBtn.addEventListener('click', () => {
             window.speechSynthesis.cancel();
             isSpeaking = false;
