@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VRM 1.0 虛擬角色檢視器</title>
+    <title>文藻 AI 虛擬助教</title>
     <!-- 引入 Tailwind CSS 作為 UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -41,7 +41,7 @@
 
         <!-- 底部中央對話輸入框 -->
         <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-lg pointer-events-auto flex gap-2 z-10">
-            <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-sm" />
+            <input type="text" id="chat-input" placeholder="與助教對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-sm" />
             <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-sm shrink-0">發送</button>
         </div>
 
@@ -49,16 +49,8 @@
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <h1 class="text-lg font-bold text-blue-400">文藻 AI 虛擬助教</h1>
-                    <div class="flex items-center gap-3">
-                        <!-- 設定按鈕 -->
-                        <button id="settings-btn" class="text-gray-400 hover:text-white transition-colors" title="設定 API Key">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        </button>
-                        <!-- 連線狀態指示燈 (預設橘燈) -->
-                        <div id="status-light" class="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)] transition-colors" title="API狀態：未連線"></div>
-                    </div>
                 </div>
-                <p class="text-xs text-gray-300">支援語音對話與表情連動的 3D 虛擬化身互動展示。</p>
+                <p class="text-xs text-gray-300">支援語音對話與表情連動的 3D 互動展示。</p>
                 
                 <div id="loading-status" class="mt-2 text-xs text-yellow-400 hidden flex items-center justify-center">
                     <svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -72,28 +64,12 @@
 
             <!-- 操作說明 -->
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
-                <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">滑鼠操作說明</h3>
+                <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
-                    <li><span class="text-blue-400 font-bold">左鍵拖曳</span> : 旋轉視角</li>
-                    <li><span class="text-blue-400 font-bold">右鍵拖曳</span> : 平移視角</li>
-                    <li><span class="text-blue-400 font-bold">滾輪捲動</span> : 放大 / 縮小</li>
+                    <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉視角</li>
+                    <li><span class="text-blue-400 font-bold">右鍵</span> : 平移視角</li>
+                    <li><span class="text-blue-400 font-bold">滾輪</span> : 縮放視角</li>
                 </ul>
-            </div>
-        </div>
-
-        <!-- 設定 Modal -->
-        <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden pointer-events-auto">
-            <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-                <h2 class="text-xl font-bold text-white mb-4">API 連線設定</h2>
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-2">Gemini API Key</label>
-                    <input type="password" id="modal-api-key" placeholder="輸入 API Key (選填)" class="w-full bg-gray-800 text-white px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 text-sm" />
-                </div>
-                <div id="modal-status" class="mb-4 text-sm hidden"></div>
-                <div class="flex justify-end gap-3">
-                    <button id="modal-cancel-btn" class="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-800 transition-colors text-sm font-medium">取消</button>
-                    <button id="modal-connect-btn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-bold shadow-lg flex items-center gap-2">連線測試</button>
-                </div>
             </div>
         </div>
     </div>
@@ -117,13 +93,11 @@
         let targetExpression = 'neutral';
         const expressions = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
 
-        // 特殊動作控制變數 (如閉眼、張口)
+        // 特殊動作控制變數
         let activeSpecialAction = null;
         let specialActionTimer = 0;
 
         // 對話與語音變數
-        const apiKey = ""; 
-        let validatedApiKey = ""; // 儲存測試成功的 API Key
         let isSpeaking = false;
         let lipSyncTimer = 0;
         let conversationHistory = [];
@@ -134,25 +108,19 @@
 
             // 1. 建立場景
             scene = new THREE.Scene();
-            // 設定一個明亮的自然背景色
             scene.background = new THREE.Color(0xdbe3ea);
-            // 加入霧氣，讓遠處的物件融入背景，增加空間感
             scene.fog = new THREE.Fog(0xdbe3ea, 10, 50);
 
             // 2. 建立相機
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-            
-            // 將相機稍微拉遠 (Z 軸 -1.6)，並提高 (Y 軸 1.45)，確保頭部不會被切到
             camera.position.set(0, 1.45, -1.6); 
 
             // 3. 建立渲染器
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            // 啟用陰影
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            // 色彩空間轉換
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             container.appendChild(renderer.domElement);
@@ -160,12 +128,10 @@
             // 4. 控制器 (OrbitControls)
             controls = new OrbitControls(camera, renderer.domElement);
             controls.screenSpacePanning = true;
-            
-            // 將對焦點稍微提高 (1.3)，讓角色置中於畫面
             controls.target.set(0, 1.3, 0); 
             controls.update();
 
-            // 5. 建立 3D 背景環境
+            // 5. 建立背景與環境
             setupEnvironment();
 
             // 6. 監聽視窗縮放
@@ -174,122 +140,61 @@
             // 7. 開始動畫迴圈
             animate();
 
-            // 8. 自動載入同目錄下的模型 (專為 Vercel 部署設定)
+            // 8. 自動載入模型 (偵測環境以避免預覽錯誤)
             let modelPath = './AvatarSample_C.vrm';
-            
-            // 解決預覽環境 (blob:) 無法解析相對路徑的 TypeError 錯誤與外部 404 錯誤
             if (window.location.protocol === 'blob:' || window.location.protocol === 'data:') {
-                // 在沙盒預覽環境直接攔截載入動作，顯示友善提示，避免任何網路請求報錯。
-                // 您的 Vercel 站台 (https://...) 會略過此判斷，正常載入模型！
                 const errorUI = document.getElementById('error-status');
                 document.getElementById('loading-status').classList.add('hidden');
-                errorUI.innerHTML = '【預覽模式】<br>沙盒環境限制讀取本地模型。<br>Vercel 部署已生效，請直接至 Vercel 網址觀看專屬角色！';
+                errorUI.innerHTML = '【預覽模式】<br>沙盒環境限制讀取本地模型。<br>Vercel 部署後即可正常載入專屬角色！';
                 errorUI.classList.remove('text-red-400');
                 errorUI.classList.add('text-blue-300');
                 errorUI.classList.remove('hidden');
-                return; // 終止執行 loadVRM，徹底避免 404 報錯
+                return;
             }
-            
             loadVRM(modelPath);
         }
 
         // --- 建立豐富的 3D 背景環境 ---
         function setupEnvironment() {
-            // 環境光：提供柔和的自然基礎照明，避免皮膚死白
             const ambientLight = new THREE.HemisphereLight(0xffffff, 0x999999, 0.8);
             scene.add(ambientLight);
 
-            // 主光源（平行光）：模擬自然太陽光，移至角色正前方並設定為暖白色
             const directionalLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
             directionalLight.position.set(2, 5, 3);
             directionalLight.castShadow = true;
-            // 設定陰影的解析度與範圍
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 15;
-            directionalLight.shadow.camera.left = -3;
-            directionalLight.shadow.camera.right = 3;
-            directionalLight.shadow.camera.top = 3;
-            directionalLight.shadow.camera.bottom = -3;
-            directionalLight.shadow.bias = -0.001;
             scene.add(directionalLight);
 
-            // 補光：從左前方照亮暗部，讓皮膚與服裝細節更豐富
             const fillLight = new THREE.DirectionalLight(0xcceeff, 1.2);
             fillLight.position.set(-2, 2, 2);
             scene.add(fillLight);
 
-            // 地板 (改為較明亮的顏色)
             const floorGeometry = new THREE.PlaneGeometry(50, 50);
-            const floorMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x8a95a5,
-                roughness: 0.6,
-                metalness: 0.1
-            });
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x8a95a5, roughness: 0.6 });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // 網格輔助線 (Grid)
-            const gridHelper = new THREE.GridHelper(50, 100, 0xb0bac5, 0x8a95a5);
-            gridHelper.position.y = 0.01; // 稍微抬高避免與地板 Z-fighting
-            gridHelper.material.transparent = true;
-            gridHelper.material.opacity = 0.5;
-            scene.add(gridHelper);
-
-            // 展示台 (Pedestal)
             const pedestalGeometry = new THREE.CylinderGeometry(0.8, 1, 0.1, 32);
-            const pedestalMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0xdbe3ea, 
-                roughness: 0.3,
-                metalness: 0.2
-            });
+            const pedestalMaterial = new THREE.MeshStandardMaterial({ color: 0xdbe3ea, roughness: 0.3 });
             const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
             pedestal.position.y = 0.05;
             pedestal.receiveShadow = true;
-            pedestal.castShadow = true;
             scene.add(pedestal);
 
-            // 發光環 (展示台裝飾)
-            const ringGeometry = new THREE.RingGeometry(0.85, 0.9, 32);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-            ring.rotation.x = -Math.PI / 2;
-            ring.position.y = 0.11;
-            scene.add(ring);
-
-            // 漂浮粒子系統 (改為彩色並避免泛白)
+            // 漂浮粒子系統
             const particleCount = 200;
             const particleGeometry = new THREE.BufferGeometry();
-            const particlePositions = new Float32Array(particleCount * 3);
-            const particleColors = new Float32Array(particleCount * 3);
-            const color = new THREE.Color();
-            
+            const positions = new Float32Array(particleCount * 3);
             for(let i = 0; i < particleCount; i++) {
-                // 產生在展示台周圍的隨機位置
-                particlePositions[i*3] = (Math.random() - 0.5) * 10;
-                particlePositions[i*3+1] = Math.random() * 5;
-                particlePositions[i*3+2] = (Math.random() - 0.5) * 10;
-                
-                // 設定鮮豔的隨機顏色 (提高飽和度)
-                color.setHSL(Math.random(), 1.0, 0.5);
-                particleColors[i*3] = color.r;
-                particleColors[i*3+1] = color.g;
-                particleColors[i*3+2] = color.b;
+                positions[i*3] = (Math.random() - 0.5) * 10;
+                positions[i*3+1] = Math.random() * 5;
+                positions[i*3+2] = (Math.random() - 0.5) * 10;
             }
-            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-            particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
-            
-            // 移除了 AdditiveBlending，改用正常混和，確保顏色不會重疊發白
-            const particleMaterial = new THREE.PointsMaterial({
-                size: 0.08,
-                transparent: true,
-                opacity: 0.9,
-                vertexColors: true
-            });
-            particles = new THREE.Points(particleGeometry, particleMaterial);
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles = new THREE.Points(particleGeometry, new THREE.PointsMaterial({ size: 0.05, color: 0xffffff, transparent: true, opacity: 0.5 }));
             scene.add(particles);
         }
 
@@ -300,436 +205,167 @@
             loadingUI.classList.remove('hidden');
             errorUI.classList.add('hidden');
 
-            // 實例化 GLTFLoader
             const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
 
-            // 註冊 VRM 解析擴充套件
-            loader.register((parser) => {
-                return new VRMLoaderPlugin(parser);
-            });
+            loader.load(url, (gltf) => {
+                const vrm = gltf.userData.vrm;
+                if (currentVrm) scene.remove(currentVrm.scene);
 
-            loader.load(
-                url,
-                // OnLoad
-                (gltf) => {
-                    const vrm = gltf.userData.vrm;
+                VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                // 修正棄用警告
+                VRMUtils.combineSkeletons(gltf.scene);
 
-                    // 若已有模型，則從場景中移除並清理記憶體
-                    if (currentVrm) {
-                        scene.remove(currentVrm.scene);
-                        currentVrm.scene.traverse((child) => {
-                            if (child.isMesh) {
-                                child.geometry.dispose();
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(m => {
-                                        if (m.map) m.map.dispose(); // 釋放紋理記憶體
-                                        m.dispose();
-                                    });
-                                } else {
-                                    if (child.material.map) child.material.map.dispose(); // 釋放紋理記憶體
-                                    child.material.dispose();
-                                }
-                            }
-                        });
+                vrm.scene.traverse((obj) => {
+                    obj.frustumCulled = false;
+                    if (obj.isMesh) {
+                        obj.castShadow = true;
+                        obj.receiveShadow = true;
                     }
+                });
 
-                    // 最佳化 VRM 模型
-                    VRMUtils.removeUnnecessaryVertices(gltf.scene);
-                    // 將廢棄的 removeUnnecessaryJoints 替換為官方建議的 combineSkeletons
-                    VRMUtils.combineSkeletons(gltf.scene);
-
-                    // 設定陰影與視錐體剔除
-                    vrm.scene.traverse((obj) => {
-                        obj.frustumCulled = false; // 防止模型在視角邊緣被錯誤剔除
-                        if (obj.isMesh) {
-                            obj.castShadow = true;
-                            obj.receiveShadow = true;
-                        }
-                    });
-
-                    // 強制轉換為 A-pose (雙手自然下垂)
-                    if (vrm.humanoid) {
-                        const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
-                        const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-                        // 修正旋轉方向的正負號，讓手臂往下垂
-                        if (leftUpperArm) leftUpperArm.rotation.z = -1.1; 
-                        if (rightUpperArm) rightUpperArm.rotation.z = 1.1; 
-                        
-                        // 稍微張開前臂，讓姿勢更自然
-                        const leftLowerArm = vrm.humanoid.getNormalizedBoneNode('leftLowerArm');
-                        const rightLowerArm = vrm.humanoid.getNormalizedBoneNode('rightLowerArm');
-                        if (leftLowerArm) leftLowerArm.rotation.z = -0.1;
-                        if (rightLowerArm) rightLowerArm.rotation.z = 0.1;
-                    }
-
-                    // 將角色稍微抬高，站在展示台上
-                    vrm.scene.position.y = 0.1;
-                    
-                    // VRM 預設面向 +Z，為了讓角色一開始面對相機，我們讓它轉向 -Z，或者把相機放在 -Z
-                    // 這裡我們的相機在 Z = -1.6，看向 Z = 0，所以角色面向 +Z 就是看著相機。
-                    // 因此通常不需要旋轉，但若發現背對，可以取消下面這行的註解
-                    vrm.scene.rotation.y = Math.PI;
-
-                    // 加入場景
-                    scene.add(vrm.scene);
-                    currentVrm = vrm;
-
-                    loadingUI.classList.add('hidden');
-                    console.log('VRM 載入成功!');
-                },
-                // OnProgress
-                (progress) => {
-                    // 可在此處更新進度條
-                    // console.log( 100.0 * (progress.loaded / progress.total) + '% loaded' );
-                },
-                // OnError
-                (error) => {
-                    console.error('模型載入失敗:', error);
-                    loadingUI.classList.add('hidden');
-                    errorUI.textContent = '模型載入失敗，請確認檔案路徑或名稱是否正確。';
-                    errorUI.classList.remove('hidden');
+                if (vrm.humanoid) {
+                    const lA = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+                    const rA = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+                    if (lA) lA.rotation.z = -1.1; 
+                    if (rA) rA.rotation.z = 1.1; 
                 }
-            );
+
+                vrm.scene.position.y = 0.1;
+                vrm.scene.rotation.y = Math.PI;
+                scene.add(vrm.scene);
+                currentVrm = vrm;
+                loadingUI.classList.add('hidden');
+            }, undefined, (error) => {
+                console.error(error);
+                loadingUI.classList.add('hidden');
+                errorUI.textContent = '模型載入失敗，請確認檔案路徑。';
+                errorUI.classList.remove('hidden');
+            });
         }
 
         // --- 動畫迴圈 ---
         function animate() {
             requestAnimationFrame(animate);
-
             const delta = clock.getDelta();
             const time = clock.getElapsedTime();
 
-            // 更新 VRM 物理引擎 (頭髮、裙子飄動) 和表情/動作
             if (currentVrm) {
-                // 1. 自然呼吸與閒置動作
+                // 1. 自然呼吸
                 if (currentVrm.humanoid) {
                     const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
-                    const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
-                    if (chest) {
-                        // 胸腔隨時間起伏 (X軸微幅旋轉)
-                        chest.rotation.x = Math.sin(time * 1.5) * 0.015;
-                    }
-                    if (spine) {
-                        // 身體微幅左右搖晃
-                        spine.rotation.y = Math.sin(time * 0.5) * 0.01;
-                    }
+                    if (chest) chest.rotation.x = Math.sin(time * 1.5) * 0.015;
                 }
 
-                // 2. 隨機表情展現 (被 AI 控制時會暫停隨機切換)
+                // 2. 表情控制
                 if (currentVrm.expressionManager) {
                     expressionTimer += delta;
-                    // 每 4 秒更換一次表情
                     if (expressionTimer > 4.0) {
                         expressionTimer = 0;
                         currentExpression = targetExpression;
-                        // 隨機挑選新表情
                         targetExpression = expressions[Math.floor(Math.random() * expressions.length)];
-                        expressionBlend = 0; // 開始漸變
+                        expressionBlend = 0;
                     }
+                    if (expressionBlend < 1.0) expressionBlend += delta * 2.0;
 
-                    // 處理表情漸變過渡 (0.5秒過渡)
-                    if (expressionBlend < 1.0) {
-                        expressionBlend += delta * 2.0; 
-                        if (expressionBlend > 1.0) expressionBlend = 1.0;
-                    }
-
-                    // 歸零所有受控情緒表情
-                    expressions.forEach(exp => {
-                        currentVrm.expressionManager.setValue(exp, 0);
-                    });
-                    
-                    // 設定當前與目標表情的混和權重，達到平滑過渡
+                    expressions.forEach(exp => currentVrm.expressionManager.setValue(exp, 0));
                     currentVrm.expressionManager.setValue(currentExpression, 1.0 - expressionBlend);
                     currentVrm.expressionManager.setValue(targetExpression, expressionBlend);
-                }
 
-                // 3. 特殊動作控制 (如閉眼、指定張口)
-                if (currentVrm.expressionManager) {
+                    // 特殊動作
                     if (specialActionTimer > 0 && activeSpecialAction) {
                         specialActionTimer -= delta;
                         currentVrm.expressionManager.setValue(activeSpecialAction, 1.0);
-                    } else if (activeSpecialAction) {
-                        currentVrm.expressionManager.setValue(activeSpecialAction, 0);
-                        activeSpecialAction = null;
                     }
-                }
 
-                // 4. 語音同步唇形 (Lip Sync)
-                if (currentVrm.expressionManager) {
-                    if (isSpeaking) {
-                        lipSyncTimer += delta * 15; // 控制嘴型變換速度
-                        // 利用正弦波產生張嘴閉嘴的連續數值 (0 ~ 1 之間)
+                    // 唇形同步
+                    if (isSpeaking && activeSpecialAction !== 'aa') {
+                        lipSyncTimer += delta * 15;
                         const mouthOpenness = (Math.sin(lipSyncTimer) + 1) / 2; 
-                        // 僅在沒有被強制張口時，才執行說話的唇形動畫
-                        if (activeSpecialAction !== 'aa') {
-                            currentVrm.expressionManager.setValue('aa', mouthOpenness * (Math.random() * 0.4 + 0.6));
-                        }
-                    } else {
-                        // 停止講話時閉上嘴巴
-                        if (activeSpecialAction !== 'aa') {
-                            currentVrm.expressionManager.setValue('aa', 0);
-                        }
+                        currentVrm.expressionManager.setValue('aa', mouthOpenness * 0.8);
                     }
                 }
-
                 currentVrm.update(delta);
             }
-
-            // 讓背景粒子緩慢旋轉漂浮
-            if (particles) {
-                particles.rotation.y += delta * 0.05;
-            }
-
+            if (particles) particles.rotation.y += delta * 0.05;
             controls.update();
             renderer.render(scene, camera);
         }
 
-        // --- 視窗縮放處理 ---
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- Gemini API 與對話邏輯 ---
+        // --- 對話邏輯 ---
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const chatBubble = document.getElementById('chat-bubble');
         const chatText = document.getElementById('chat-text');
-        const statusLight = document.getElementById('status-light');
-        
-        // Modal 相關元素
-        const settingsBtn = document.getElementById('settings-btn');
-        const settingsModal = document.getElementById('settings-modal');
-        const modalApiKey = document.getElementById('modal-api-key');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
-        const modalConnectBtn = document.getElementById('modal-connect-btn');
-        const modalStatus = document.getElementById('modal-status');
-
-        function setStatus(status) {
-            // 重置基本樣式
-            statusLight.className = 'w-3 h-3 rounded-full transition-colors ';
-            if (status === 'connecting') {
-                statusLight.className += 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]';
-            } else if (status === 'success') {
-                statusLight.className += 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]';
-            } else if (status === 'error') {
-                statusLight.className += 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]';
-            } else {
-                statusLight.className += 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]'; // 預設橘燈
-            }
-        }
-
-        async function fetchWithBackoff(url, options, maxRetries = 5) {
-            const delays = [1000, 2000, 4000, 8000, 16000];
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) return response;
-                    
-                    // 若為客戶端錯誤 (如 API Key 錯誤的 400/403)，不要重試，直接拋出錯誤避免畫面卡死
-                    if (response.status === 400 || response.status === 403 || response.status === 404) {
-                        throw new Error(`API Request Failed with status ${response.status}`);
-                    }
-                    
-                    if (i === maxRetries - 1) throw new Error(`API Request Failed with status ${response.status}`);
-                } catch (error) {
-                    // 若為驗證/格式錯誤則直接中斷，否則才重試
-                    if (error.message.includes('status 400') || error.message.includes('status 403') || error.message.includes('status 404')) {
-                        throw error;
-                    }
-                    if (i === maxRetries - 1) throw error;
-                }
-                await new Promise(resolve => setTimeout(resolve, delays[i]));
-            }
-        }
-
-        // --- 連線測試邏輯 ---
-        settingsBtn.addEventListener('click', () => {
-            settingsModal.classList.remove('hidden');
-            modalStatus.classList.add('hidden');
-            modalApiKey.value = validatedApiKey || apiKey;
-        });
-
-        modalCancelBtn.addEventListener('click', () => {
-            settingsModal.classList.add('hidden');
-        });
-
-        modalConnectBtn.addEventListener('click', async () => {
-            const testKey = modalApiKey.value.trim() || apiKey;
-            // 動態判斷：若使用者有輸入自訂的 API Key，則使用標準版模型；若留空則使用環境預覽版模型
-            const modelName = modalApiKey.value.trim() ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
-            
-            modalConnectBtn.disabled = true;
-            modalConnectBtn.textContent = '測試中...';
-            modalStatus.classList.remove('hidden');
-            modalStatus.className = 'mb-4 text-sm text-yellow-400';
-            modalStatus.textContent = '正在驗證連線...';
-            setStatus('connecting');
-
-            try {
-                // 發送一個極簡請求測試連線 (必須包含正確的 role 屬性避免 400 錯誤)
-                const response = await fetchWithBackoff(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${testKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ role: "user", parts: [{ text: "測試連線" }] }] 
-                    })
-                });
-
-                if (!response.ok) throw new Error(`Status ${response.status}`);
-                
-                // 連線成功
-                validatedApiKey = testKey;
-                setStatus('success');
-                modalStatus.className = 'mb-4 text-sm text-green-400';
-                modalStatus.textContent = '連線成功！';
-                
-                // 成功後延遲自動關閉視窗
-                setTimeout(() => {
-                    settingsModal.classList.add('hidden');
-                    modalConnectBtn.disabled = false;
-                    modalConnectBtn.textContent = '連線測試';
-                }, 800);
-
-            } catch (error) {
-                console.warn("Test Connection Error:", error.message);
-                setStatus('error');
-                modalStatus.className = 'mb-4 text-sm text-red-400';
-                modalStatus.textContent = '連線失敗 (Error 400/403)，請確認 API Key 格式正確且有效。';
-                modalConnectBtn.disabled = false;
-                modalConnectBtn.textContent = '連線測試';
-            }
-        });
 
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (!text) return;
 
-            // 檢查是否已完成連線設定
-            if (!validatedApiKey && !apiKey) {
-                chatBubble.classList.remove('hidden');
-                chatText.innerHTML = `<span class="text-red-400">系統提示：請先點擊左側「設定按鈕 (齒輪圖示)」完成 API 連線設定與測試。</span>`;
-                setStatus('error');
-                return;
-            }
-            
-            const userKey = validatedApiKey || apiKey;
-            // 動態判斷：確保對話時，自訂 Key 也能正確對應到標準版模型
-            const modelName = (validatedApiKey && validatedApiKey !== apiKey) ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
-
-            // 顯示使用者對話
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
             chatText.innerHTML = `<span class="text-blue-300">你：</span>${text}<br><span class="text-gray-400">正在思考中...</span>`;
-            setStatus('connecting');
 
-            // 準備傳送給 Gemini 的資料
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
             try {
-                // 呼叫 Gemini API 並要求回傳 JSON 格式以控制動作
-                const response = await fetchWithBackoff(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${userKey}`, {
+                // 發送請求至伺服器代理端 (api/chat.js)
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemInstruction: { parts: [{ text: "你是一個活潑的虛擬角色，請用繁體中文以口語化、生動且簡短的語氣回答（盡量一到兩句話即可）。請仔細閱讀使用者的對話，若使用者要求你做特定表情或動作(例如生氣、閉眼、張口)，請配合使用者要求並設定在屬性中。" }] },
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            responseSchema: {
-                                type: "OBJECT",
-                                properties: {
-                                    reply: { type: "STRING", description: "回覆使用者的文字內容" },
-                                    expression: { type: "STRING", description: "角色的情緒表情，從以下選擇一個: neutral, happy, angry, sad, relaxed, surprised" },
-                                    specialAction: { type: "STRING", description: "使用者的特殊動作要求，從以下選擇一個: none, blink (閉雙眼), blinkLeft (閉左眼), blinkRight (閉右眼), aa (張口)" },
-                                    actionDuration: { type: "NUMBER", description: "特殊動作持續的時間(秒)。若無要求預設為 3。" }
-                                },
-                                required: ["reply", "expression", "specialAction", "actionDuration"]
-                            }
-                        }
+                        systemInstruction: "你是一個活潑的虛擬助教，請用繁體中文以口語化、生動且簡短的語氣回答（盡量一到兩句話即可）。若使用者要求你做表情(例如生氣、驚訝)，請配合並設定在屬性中。"
                     })
                 });
 
-                const data = await response.json();
-                // 使用安全存取，避免 API 回傳內容有缺漏時發生錯誤
-                const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                if (!response.ok) throw new Error('API 連線失敗');
+
+                const aiResponse = await response.json();
+                conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify(aiResponse) }] });
                 
-                // 儲存對話紀錄 (確保歷史紀錄與模型輸出的 JSON 結構一致)
-                conversationHistory.push({ role: "model", parts: [{ text: aiText }] });
-                
-                let replyText = aiText;
-                
-                // 解析 AI 回傳的 JSON 指令
-                try {
-                    // 清除可能存在的 markdown 標籤
-                    const cleanText = aiText.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
-                    const aiResponse = JSON.parse(cleanText);
-                    replyText = aiResponse.reply || "（沒有回覆文字）";
-                    
-                    // 1. 設定情緒表情
-                    if (expressions.includes(aiResponse.expression)) {
-                        currentExpression = targetExpression;
-                        targetExpression = aiResponse.expression;
-                        expressionBlend = 0;
-                        // 暫停隨機表情切換 10 秒鐘，讓 AI 的表情能維持一陣子
-                        expressionTimer = -10.0; 
-                    }
-                    
-                    // 2. 設定特殊動作 (閉眼、張口等)
-                    if (aiResponse.specialAction && aiResponse.specialAction !== 'none') {
-                        // 若有前一個動作則先歸零
-                        if (activeSpecialAction && currentVrm) currentVrm.expressionManager.setValue(activeSpecialAction, 0);
-                        activeSpecialAction = aiResponse.specialAction;
-                        specialActionTimer = aiResponse.actionDuration || 3;
-                    }
-                } catch (e) {
-                    console.warn("解析動作指令失敗:", e);
+                // 更新表情
+                if (expressions.includes(aiResponse.expression)) {
+                    currentExpression = targetExpression;
+                    targetExpression = aiResponse.expression;
+                    expressionBlend = 0;
+                    expressionTimer = -10.0; 
+                }
+                // 設定特殊動作
+                if (aiResponse.specialAction && aiResponse.specialAction !== 'none') {
+                    activeSpecialAction = aiResponse.specialAction;
+                    specialActionTimer = aiResponse.actionDuration || 3;
                 }
 
-                // 更新 UI
-                setStatus('success');
-                chatText.innerHTML = `<span class="text-green-300">角色：</span>${replyText}`;
-                
-                // 語音播放與唇部同步
-                speakAndLipSync(replyText);
+                chatText.innerHTML = `<span class="text-green-300">助教：</span>${aiResponse.reply}`;
+                speakAndLipSync(aiResponse.reply);
 
             } catch (error) {
-                console.warn("Gemini API Error:", error.message);
-                setStatus('error');
-                // 直接覆蓋對話內容顯示錯誤，不再使用 += 追加，避免畫面太長
-                chatText.innerHTML = `<span class="text-red-400">連線失敗，請確認您的 API Key 是否正確或網路狀態。</span>`;
-                // 若失敗則移除最後一筆 user 歷史紀錄避免錯亂
+                console.error(error);
+                chatText.innerHTML = `<span class="text-red-400">無法連線至 AI 服務。請確保已在 Vercel 設定 GEMINI_API_KEY。</span>`;
                 conversationHistory.pop();
             }
         }
 
         function speakAndLipSync(text) {
-            // 中斷之前的語音
             window.speechSynthesis.cancel();
-            
-            // 使用瀏覽器原生語音合成
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'zh-TW';
-            utterance.rate = 1.1; // 稍微加快語速
-            utterance.pitch = 1.2; // 稍微提高音調
-            
-            // 綁定說話狀態，觸發 3D 角色的嘴唇動畫
             utterance.onstart = () => { isSpeaking = true; };
             utterance.onend = () => { isSpeaking = false; };
-            utterance.onerror = () => { isSpeaking = false; };
-
             window.speechSynthesis.speak(utterance);
         }
 
         sendBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
+        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
-        // 啟動應用程式
         init();
-
     </script>
 </body>
 </html>
