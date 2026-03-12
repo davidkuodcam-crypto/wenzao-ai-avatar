@@ -38,19 +38,18 @@
     <!-- UI 介面層 -->
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
         
-        <!-- 底部中央對話整合容器 (將對話氣泡與輸入框包覆在一起，並提高透明度) -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-black/30 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/10 z-10 transition-all duration-300">
+        <!-- 底部中央對話整合容器 (極高透明度薄玻璃質感，包覆文字與輸入框) -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-black/5 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white/20 z-10 transition-all duration-300">
             
-            <!-- 對話氣泡窗 (預設隱藏，改為在整合容器內部) -->
-            <div id="chat-bubble" class="hidden px-2 max-h-48 overflow-y-auto no-scrollbar">
-                <p id="chat-text" class="text-base text-white leading-relaxed drop-shadow-md"></p>
+            <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
+            <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
+                <p id="chat-text" class="text-lg text-white font-medium leading-relaxed drop-shadow"></p>
             </div>
 
             <!-- 底部對話輸入框 -->
             <div class="flex gap-2 w-full">
-                <!-- 調整為更透明的玻璃質感 -->
-                <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-black/40 text-white px-4 py-3 rounded-2xl border border-white/10 focus:outline-none focus:border-blue-400 focus:bg-black/60 shadow-inner text-base transition-colors" />
-                <button id="send-btn" class="bg-blue-600/80 hover:bg-blue-500/90 backdrop-blur text-white px-5 py-3 rounded-2xl shadow-lg transition-colors font-bold text-base shrink-0">發送</button>
+                <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-black/10 text-white placeholder-white/50 px-4 py-3 rounded-xl border border-white/20 focus:outline-none focus:border-white/40 focus:bg-black/30 shadow-inner text-base transition-colors" />
+                <button id="send-btn" class="bg-blue-600/60 hover:bg-blue-500/80 backdrop-blur text-white px-5 py-3 rounded-xl shadow transition-colors font-bold text-base shrink-0">發送</button>
             </div>
         </div>
 
@@ -102,8 +101,8 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        // [修正1]：強化 Prompt，賦予實體意識，避免出戲回答「我只是一個程式...」
-        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應（如「好的，我閉上了！」），並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。";
+        // [修正1]：強化 Prompt，賦予實體意識，並加入「誠實原則」
+        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應（如「好的，我閉上了！」），並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（如學校科系歸屬等），請務必誠實回答「我不知道」，絕對不可自行編造。";
         let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
 
         // 表情控制變數
@@ -148,8 +147,8 @@
                     const parts = fullPromptText.split('=== 提示詞 ===');
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
-                        // 確保如果外部載入 prompt.txt，也能維持實體意識
-                        systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請自然答應並配合，絕對不要說自己無法做到。)";
+                        // 確保如果外部載入 prompt.txt，也能維持實體意識與誠實原則
+                        systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
                     }
@@ -168,7 +167,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `${openingPhrase}`;
+            chatText.innerHTML = `${openingPhrase}`; // 移除「角色：」前綴
             
             speakAndLipSync(openingPhrase);
             
@@ -446,7 +445,8 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `<span class="text-blue-300">你：</span>${text}<br><span class="text-gray-400">正在思考中...</span>`;
+            // 將使用者的文字加上淡淡的樣式，區隔 AI 與使用者的對話，並移除「角色：」
+            chatText.innerHTML = `<span class="text-blue-200 text-sm font-normal">你：${text}</span><br><span class="text-white/60 text-sm font-normal animate-pulse">正在思考中...</span>`;
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
@@ -494,7 +494,7 @@
                 }
 
                 setStatus('success');
-                chatText.innerHTML = `${replyText}`;
+                chatText.innerHTML = `${replyText}`; // 移除「角色：」前綴，只顯示回覆內容
                 speakAndLipSync(replyText);
                 
                 conversationHistory.push({ role: "model", parts: [{ text: jsonMatch ? jsonMatch[0] : aiText }] });
@@ -507,7 +507,7 @@
             }
         }
 
-        // --- [修正2]：強化 iOS Safari 的發聲與嘴型同步防護 ---
+        // --- 強化 iOS Safari 的發聲與嘴型同步防護 ---
         window.keepAliveUtterances = [];
         let speechCheckInterval = null;
 
