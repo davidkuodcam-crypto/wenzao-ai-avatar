@@ -198,10 +198,11 @@
 
             window.addEventListener('resize', onWindowResize);
 
-            let modelUrl = './AvatarSample_C.vrm';
+            // 修改 1：預設載入模型改為 AvatarSample_W.vrm
+            let modelUrl = './AvatarSample_W.vrm';
             
             if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
-                modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_C.vrm';
+                modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_W.vrm';
             }
             
             loadVRM(modelUrl);
@@ -328,7 +329,8 @@
                     console.error('模型載入失敗:', error);
                     if(loadingUI) loadingUI.classList.add('hidden');
                     if(errorUI) {
-                        errorUI.textContent = '無法載入預設模型 AvatarSample_C.vrm，請確認檔案路徑。';
+                        // 連同錯誤訊息一併更新
+                        errorUI.textContent = '無法載入預設模型 AvatarSample_W.vrm，請確認檔案路徑。';
                         errorUI.classList.remove('hidden');
                     }
                 }
@@ -438,7 +440,7 @@
 
         async function sendMessage() {
             const text = chatInput.value.trim();
-            if (!text) return;
+            if (!text) return; // 如果只是發送空白，程式會在這裡停止（但語音已經被中斷了）
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
@@ -560,13 +562,20 @@
         document.addEventListener('click', initialUnlock, { once: true });
         // ------------------------------------
 
+        // 修改 2：點擊發送（或按Enter）時，立即中斷目前語音，達到「隨時閉嘴」的效果
         sendBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            isSpeaking = false;
+
             unlockAudioForIOS(); // 關鍵：每次點擊發送，都強制喚醒一次引擎
             sendMessage();
         });
         
         chatInput.addEventListener('keypress', (e) => { 
             if (e.key === 'Enter') {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+
                 unlockAudioForIOS(); // 關鍵：每次按 Enter 也強制喚醒引擎
                 sendMessage(); 
             }
