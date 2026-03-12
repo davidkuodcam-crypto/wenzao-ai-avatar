@@ -34,23 +34,27 @@
     <!-- UI 介面層 -->
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
         <!-- 對話氣泡窗 (預設隱藏) -->
+        <!-- 針對手機調整寬度：w-[calc(100%-2rem)] 確保左右留白 -->
         <div id="chat-bubble" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/20 max-w-lg w-[calc(100%-2rem)] sm:w-full hidden pointer-events-auto transition-all duration-300 z-10">
+            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
             <p id="chat-text" class="text-base leading-relaxed"></p>
         </div>
 
         <!-- 底部中央對話輸入框 -->
         <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex gap-2 z-10">
+            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
             <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-base" />
             <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-base shrink-0">發送</button>
         </div>
 
         <div class="flex justify-between items-end w-full">
             
-            <!-- 左下角：AI 虛擬助教面板 -->
+            <!-- 左下角：AI 虛擬助教面板 (目前隱藏。日後若需開啟，請將 class 開頭的 "hidden" 改回 "flex") -->
             <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <h1 class="text-lg font-bold text-blue-400">AI 虛擬助教</h1>
                     <div class="flex items-center gap-3">
+                        <!-- 連線狀態指示燈 -->
                         <div id="status-light" class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] transition-colors" title="API狀態：準備就緒"></div>
                     </div>
                 </div>
@@ -66,7 +70,7 @@
                 <div id="error-status" class="mt-3 text-xs text-red-400 hidden text-center"></div>
             </div>
 
-            <!-- 右下角：操作說明面板 -->
+            <!-- 右下角：操作說明面板 (目前隱藏。日後若需開啟，請移除 class 中的 "hidden") -->
             <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
                 <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
@@ -84,37 +88,29 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-        // --- 防範 XSS 攻擊的安全轉義函式 ---
-        function escapeHTML(str) {
-            if (!str) return "";
-            return String(str).replace(/[&<>'"]/g, tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag));
-        }
-
         // --- 全域變數 ---
         let scene, camera, renderer, controls;
         let currentVrm = undefined;
         let particles;
         const clock = new THREE.Clock();
 
+        // 知識庫與設定變數
         let knowledgeBaseText = "";
         let systemPromptText = "你是一個專業的 AI 虛擬助教，回答要簡短生動。若使用者要求動作（如閉眼、張口），請在 JSON 中設定。";
         let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
 
+        // 表情控制變數
         let expressionTimer = 0;
         let expressionBlend = 1;
         let currentExpression = 'neutral';
         let targetExpression = 'neutral';
         const expressions = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
 
+        // 特殊動作控制變數
         let activeSpecialAction = null;
         let specialActionTimer = 0;
 
+        // 對話與語音變數
         let isSpeaking = false;
         let lipSyncTimer = 0;
         let conversationHistory = [];
@@ -156,21 +152,25 @@
             }
         }
 
+        // --- 觸發開場白 ---
         function triggerOpeningPhrase() {
             if (!openingPhrase) return;
+            
             const chatBubble = document.getElementById('chat-bubble');
             const chatText = document.getElementById('chat-text');
-            chatBubble.classList.remove('hidden');
             
-            // 安全渲染
-            chatText.innerHTML = `<span class="text-green-300">角色：</span>${escapeHTML(openingPhrase)}`;
+            chatBubble.classList.remove('hidden');
+            chatText.innerHTML = `<span class="text-green-300">角色：</span>${openingPhrase}`;
+            
             speakAndLipSync(openingPhrase);
             
             conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify({ reply: openingPhrase, expression: "happy", specialAction: "none", actionDuration: 3 }) }] });
         }
 
+        // --- 初始化場景 ---
         async function init() {
             const container = document.getElementById('canvas-container');
+
             await loadConfig();
 
             scene = new THREE.Scene();
@@ -183,13 +183,10 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            
-            // 復原原本的光影渲染設定
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            
             container.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
@@ -198,18 +195,21 @@
             controls.update();
 
             setupEnvironment();
+
             window.addEventListener('resize', onWindowResize);
 
             let modelUrl = './AvatarSample_C.vrm';
+            
             if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
                 modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_C.vrm';
             }
+            
             loadVRM(modelUrl);
+
             animate();
         }
 
         function setupEnvironment() {
-            // 完整復原所有原本的環境設定 (地台、格線、粒子特效)
             const ambientLight = new THREE.HemisphereLight(0xffffff, 0x999999, 0.8);
             scene.add(ambientLight);
 
@@ -276,7 +276,10 @@
             scene.add(particles);
         }
 
+        // --- 載入 VRM 模型 ---
         function loadVRM(url) {
+            // 因為面板已隱藏，如果直接用原來的 loadingUI 會找不到或者顯示不出來
+            // 由於原 UI 在左下角被隱藏了，我們仍然保留邏輯不報錯，只是不顯示
             const loadingUI = document.getElementById('loading-status');
             const errorUI = document.getElementById('error-status');
             if(loadingUI) loadingUI.classList.remove('hidden');
@@ -284,15 +287,17 @@
 
             const loader = new GLTFLoader();
             loader.register((parser) => new VRMLoaderPlugin(parser));
+
             loader.load(
                 url,
                 (gltf) => {
                     const vrm = gltf.userData.vrm;
-                    if (currentVrm) scene.remove(currentVrm.scene);
+                    if (currentVrm) {
+                        scene.remove(currentVrm.scene);
+                    }
                     VRMUtils.removeUnnecessaryVertices(gltf.scene);
                     VRMUtils.removeUnnecessaryJoints(gltf.scene);
 
-                    // 復原原本的陰影設定
                     vrm.scene.traverse((obj) => {
                         obj.frustumCulled = false;
                         if (obj.isMesh) {
@@ -301,7 +306,6 @@
                         }
                     });
 
-                    // >>> 復原手部角度設定 (解除 T-pose) <<<
                     if (vrm.humanoid) {
                         const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                         const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
@@ -309,7 +313,6 @@
                         if (rightUpperArm) rightUpperArm.rotation.z = 1.1; 
                     }
 
-                    // 復原原本的模型位置
                     vrm.scene.position.y = 0.1;
                     vrm.scene.rotation.y = Math.PI;
                     scene.add(vrm.scene);
@@ -317,6 +320,7 @@
 
                     if(loadingUI) loadingUI.classList.add('hidden');
                     console.log('模型自動載入成功!');
+                    
                     triggerOpeningPhrase();
                 },
                 undefined,
@@ -334,10 +338,9 @@
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-            const time = clock.getElapsedTime(); // 復原時間變數，用於呼吸動畫
-            
+            const time = clock.getElapsedTime();
+
             if (currentVrm) {
-                // 復原胸口呼吸動畫
                 if (currentVrm.humanoid) {
                     const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
                     if (chest) chest.rotation.x = Math.sin(time * 1.5) * 0.015;
@@ -358,7 +361,9 @@
                     expressions.forEach(exp => currentVrm.expressionManager.setValue(exp, 0));
                     currentVrm.expressionManager.setValue(currentExpression, 1.0 - expressionBlend);
                     currentVrm.expressionManager.setValue(targetExpression, expressionBlend);
+                }
 
+                if (currentVrm.expressionManager) {
                     if (specialActionTimer > 0 && activeSpecialAction) {
                         specialActionTimer -= delta;
                         currentVrm.expressionManager.setValue(activeSpecialAction, 1.0);
@@ -380,9 +385,7 @@
                 currentVrm.update(delta);
             }
 
-            // 復原粒子動畫
             if (particles) particles.rotation.y += delta * 0.05;
-
             controls.update();
             renderer.render(scene, camera);
         }
@@ -393,12 +396,14 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // --- Gemini API 互動邏輯 (串接後端) ---
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const chatBubble = document.getElementById('chat-bubble');
         const chatText = document.getElementById('chat-text');
         
-        // 復原狀態燈號邏輯
+        // 注意：原先面板被隱藏了，所以如果直接操作 statusLight，不會在畫面上看到燈號
+        // 但我們仍保留內部狀態切換避免程式出錯
         const statusLight = document.getElementById('status-light');
 
         function setStatus(status) {
@@ -421,10 +426,10 @@
                 try {
                     const response = await fetch(url, options);
                     if (response.ok) return response;
-                    if (response.status === 400 || response.status === 403 || response.status === 404 || response.status === 429) throw new Error(`API Error ${response.status}`);
+                    if (response.status === 400 || response.status === 403 || response.status === 404) throw new Error(`API Error ${response.status}`);
                     if (i === maxRetries - 1) throw new Error(`Failed with ${response.status}`);
                 } catch (error) {
-                    if (error.message.includes('400') || error.message.includes('403') || error.message.includes('404') || error.message.includes('429')) throw error;
+                    if (error.message.includes('400') || error.message.includes('403') || error.message.includes('404')) throw error;
                     if (i === maxRetries - 1) throw error;
                 }
                 await new Promise(r => setTimeout(r, delays[i]));
@@ -437,21 +442,22 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
-            
-            // 安全：使用 escapeHTML 防護 XSS
-            chatText.innerHTML = `<span class="text-blue-300">你：</span>${escapeHTML(text)}<br><span class="text-gray-400">正在思考中...</span>`;
-            setStatus('connecting'); // 復原燈號閃爍狀態
+            chatText.innerHTML = `<span class="text-blue-300">你：</span>${text}<br><span class="text-gray-400">正在思考中...</span>`;
+            setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
+            // 組合完整的系統提示詞 (包含知識庫，且嚴格要求純 JSON 輸出)
+            const fullSystemInstruction = `${systemPromptText}\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  "reply": "你的回覆內容",\n  "expression": "情緒(neutral, happy, angry, sad, relaxed, surprised)",\n  "specialAction": "動作(none, blink, blinkLeft, blinkRight, aa)",\n  "actionDuration": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+
             try {
-                // 安全：不再傳遞 tools 和完整的 systemInstruction，改為只傳遞變數讓後端去組合
+                // 向 Vercel 部署的 Serverless 函式發送請求
                 const response = await fetchWithBackoff(`/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemPrompt: systemPromptText,
-                        knowledgeBase: knowledgeBaseText
+                        systemInstruction: { parts: [{ text: fullSystemInstruction }] },
+                        tools: [{ googleSearch: {} }]
                     })
                 });
 
@@ -465,6 +471,7 @@
                 let replyText = aiText;
                 
                 const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                
                 if (jsonMatch) {
                     try {
                         const aiResponse = JSON.parse(jsonMatch[0]);
@@ -484,17 +491,17 @@
                     }
                 }
 
-                setStatus('success'); // 復原成功燈號
-                // 安全：渲染 AI 內容時防護 XSS
-                chatText.innerHTML = `<span class="text-green-300">角色：</span>${escapeHTML(replyText)}`;
+                setStatus('success');
+                chatText.innerHTML = `<span class="text-green-300">角色：</span>${replyText}`;
                 speakAndLipSync(replyText);
                 
+                // 確保對話歷史內為乾淨的 JSON 字串，以利下次對話
                 conversationHistory.push({ role: "model", parts: [{ text: jsonMatch ? jsonMatch[0] : aiText }] });
 
             } catch (error) {
                 console.error("發送訊息失敗:", error);
-                setStatus('error'); // 復原錯誤燈號
-                chatText.innerHTML = `<span class="text-red-400">連線失敗：${escapeHTML(error.message)}。請稍後再試。</span>`;
+                setStatus('error');
+                chatText.innerHTML = `<span class="text-red-400">連線失敗，請稍後再試。</span>`;
                 conversationHistory.pop();
             }
         }
@@ -505,11 +512,46 @@
             utterance.lang = 'zh-TW';
             utterance.onstart = () => isSpeaking = true;
             utterance.onend = () => isSpeaking = false;
+            // 加入錯誤事件監聽，避免 iOS 阻擋時卡住狀態
+            utterance.onerror = (e) => {
+                console.warn('語音播放被中斷或發生錯誤:', e);
+                isSpeaking = false;
+            };
             window.speechSynthesis.speak(utterance);
         }
 
-        sendBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+        // --- 針對 iOS Safari 的語音解鎖機制 ---
+        let isAudioUnlocked = false;
+        function unlockAudioForIOS() {
+            if (!isAudioUnlocked) {
+                // 播放一段空的、靜音的語音來取得 iOS 瀏覽器的播放權限
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                silentUtterance.volume = 0;
+                window.speechSynthesis.speak(silentUtterance);
+                isAudioUnlocked = true;
+                
+                // 取得權限後移除監聽器
+                document.removeEventListener('touchstart', unlockAudioForIOS);
+                document.removeEventListener('click', unlockAudioForIOS);
+            }
+        }
+        
+        // 綁定在第一次觸控或點擊時解鎖
+        document.addEventListener('touchstart', unlockAudioForIOS, { once: true });
+        document.addEventListener('click', unlockAudioForIOS, { once: true });
+        // ------------------------------------
+
+        sendBtn.addEventListener('click', () => {
+            unlockAudioForIOS(); // 雙重保險：點擊發送時也強制解鎖一次
+            sendMessage();
+        });
+        
+        chatInput.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') {
+                unlockAudioForIOS(); // 雙重保險
+                sendMessage(); 
+            }
+        });
 
         init();
     </script>
