@@ -71,8 +71,8 @@ export default async function handler(req, res) {
         const geminiPayload = {
             contents: contents,
             systemInstruction: { parts: [{ text: fullSystemInstruction }] },
-            // 將 Tools 寫死在後端，避免前端惡意傳送高消耗資源或未知的 Tools
-            tools: [{ googleSearch: {} }] 
+            // 修正：Gemini API 官方規定的工具名稱必須是底線分隔的 google_search
+            tools: [{ google_search: {} }] 
         };
         // -------------------------------------
 
