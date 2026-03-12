@@ -456,6 +456,7 @@
                     body: JSON.stringify({
                         contents: conversationHistory,
                         systemInstruction: { parts: [{ text: fullSystemInstruction }] },
+                        tools: [{ google_search: {} }], // <--- 新增此行：啟用 Google Search Grounding 搜尋工具
                         generationConfig: {
                             responseMimeType: "application/json",
                             responseSchema: {
