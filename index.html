@@ -113,28 +113,23 @@
                 let promptUrl = './prompt.txt';
                 let kbUrl = './knowledgebase.txt';
                 
-                // 針對預覽環境（如 Blob），嘗試使用 Vercel 網址作為回退
                 if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
                     promptUrl = 'https://wenzao-ai-avatar.vercel.app/prompt.txt';
                     kbUrl = 'https://wenzao-ai-avatar.vercel.app/knowledgebase.txt';
                 }
 
-                // 並行發送請求以加快載入速度
                 const [promptRes, kbRes] = await Promise.all([
                     fetch(promptUrl).catch(() => null),
                     fetch(kbUrl).catch(() => null)
                 ]);
 
-                // 處理知識庫
                 if (kbRes && kbRes.ok) {
                     knowledgeBaseText = await kbRes.text();
                     console.log("知識庫載入成功");
                 }
 
-                // 處理提示詞與開場白
                 if (promptRes && promptRes.ok) {
                     const fullPromptText = await promptRes.text();
-                    // 簡單的字串解析：尋找 "=== 開場詞 ===" 與 "=== 提示詞 ===" 區塊
                     const parts = fullPromptText.split('=== 提示詞 ===');
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
@@ -159,10 +154,8 @@
             chatBubble.classList.remove('hidden');
             chatText.innerHTML = `<span class="text-green-300">角色：</span>${openingPhrase}`;
             
-            // 語音播放與唇部同步
             speakAndLipSync(openingPhrase);
             
-            // 將開場白加入對話歷史中，讓 AI 知道自己說過什麼
             conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify({ reply: openingPhrase, expression: "happy", specialAction: "none", actionDuration: 3 }) }] });
         }
 
@@ -170,7 +163,6 @@
         async function init() {
             const container = document.getElementById('canvas-container');
 
-            // 優先載入文字設定檔
             await loadConfig();
 
             scene = new THREE.Scene();
@@ -198,10 +190,8 @@
 
             window.addEventListener('resize', onWindowResize);
 
-            // 自動載入根目錄的 VRM 模型
             let modelUrl = './AvatarSample_C.vrm';
             
-            // 針對預覽環境（如 Blob），嘗試使用 Vercel 網址作為回退
             if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
                 modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_C.vrm';
             }
@@ -306,7 +296,6 @@
                         }
                     });
 
-                    // 初始 A-pose
                     if (vrm.humanoid) {
                         const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                         const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
@@ -322,7 +311,6 @@
                     loadingUI.classList.add('hidden');
                     console.log('模型自動載入成功!');
                     
-                    // 模型載入完畢後，觸發開場白
                     triggerOpeningPhrase();
                 },
                 undefined,
@@ -404,11 +392,8 @@
         const statusLight = document.getElementById('status-light');
 
         function setStatus(status) {
-            // 清除之前的顏色類別
             statusLight.className = 'w-3 h-3 rounded-full transition-colors ';
-            
             if (status === 'connecting') {
-                // 將橘色改為閃爍的藍燈，代表「思考中/處理中」，避免被誤認為紅燈錯誤
                 statusLight.className += 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse';
             } else if (status === 'success') {
                 statusLight.className += 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]';
@@ -445,31 +430,20 @@
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
-            // 組合完整的系統提示詞 (包含從設定檔載入的 Prompt 與知識庫)
-            const fullSystemInstruction = `${systemPromptText}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+            // 組合完整的系統提示詞 (包含知識庫，且嚴格要求純 JSON 輸出)
+            const fullSystemInstruction = `${systemPromptText}\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  "reply": "你的回覆內容",\n  "expression": "情緒(neutral, happy, angry, sad, relaxed, surprised)",\n  "specialAction": "動作(none, blink, blinkLeft, blinkRight, aa)",\n  "actionDuration": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
 
             try {
-                // 向您在 Vercel 部署的 Serverless 函式發送請求
+                // 向 Vercel 部署的 Serverless 函式發送請求
                 const response = await fetchWithBackoff(`/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
                         systemInstruction: { parts: [{ text: fullSystemInstruction }] },
-                        tools: [{ google_search: {} }], // <--- 新增此行：啟用 Google Search Grounding 搜尋工具
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            responseSchema: {
-                                type: "OBJECT",
-                                properties: {
-                                    reply: { type: "STRING" },
-                                    expression: { type: "STRING" },
-                                    specialAction: { type: "STRING" },
-                                    actionDuration: { type: "NUMBER" }
-                                },
-                                required: ["reply", "expression", "specialAction", "actionDuration"]
-                            }
-                        }
+                        // 修正 400 錯誤：1. 使用官方正確的工具名稱 googleSearch (而非 google_search)
+                        tools: [{ googleSearch: {} }]
+                        // 修正 400 錯誤：2. 移除了 generationConfig(JSON Schema) 以免與 Search 工具衝突，改由上方 Prompt 約束格式
                     })
                 });
 
@@ -479,23 +453,38 @@
                     throw new Error(data.error);
                 }
 
-                const aiResponse = JSON.parse(data.candidates[0].content.parts[0].text);
-                const replyText = aiResponse.reply;
+                const aiText = data.candidates[0].content.parts[0].text;
+                let replyText = aiText;
                 
-                if (expressions.includes(aiResponse.expression)) {
-                    targetExpression = aiResponse.expression;
-                    expressionBlend = 0;
-                    expressionTimer = -10.0; 
-                }
-                if (aiResponse.specialAction !== 'none') {
-                    activeSpecialAction = aiResponse.specialAction;
-                    specialActionTimer = aiResponse.actionDuration || 3;
+                // 修正 400 錯誤：3. 使用 Regex 擷取 JSON，即使 AI 搜尋後加上 [1] 引用來源也不會報錯
+                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                
+                if (jsonMatch) {
+                    try {
+                        const aiResponse = JSON.parse(jsonMatch[0]);
+                        replyText = aiResponse.reply || "（沒有回覆文字）";
+                        
+                        if (expressions.includes(aiResponse.expression)) {
+                            targetExpression = aiResponse.expression;
+                            expressionBlend = 0;
+                            expressionTimer = -10.0; 
+                        }
+                        if (aiResponse.specialAction && aiResponse.specialAction !== 'none') {
+                            activeSpecialAction = aiResponse.specialAction;
+                            specialActionTimer = aiResponse.actionDuration || 3;
+                        }
+                    } catch (e) {
+                        console.warn("JSON 解析失敗:", e);
+                    }
                 }
 
                 setStatus('success');
                 chatText.innerHTML = `<span class="text-green-300">角色：</span>${replyText}`;
                 speakAndLipSync(replyText);
-                conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify(aiResponse) }] });
+                
+                // 確保對話歷史內為乾淨的 JSON 字串，以利下次對話
+                conversationHistory.push({ role: "model", parts: [{ text: jsonMatch ? jsonMatch[0] : aiText }] });
+
             } catch (error) {
                 console.error("發送訊息失敗:", error);
                 setStatus('error');
