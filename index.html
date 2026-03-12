@@ -335,7 +335,8 @@
 
                     // 最佳化 VRM 模型
                     VRMUtils.removeUnnecessaryVertices(gltf.scene);
-                    VRMUtils.removeUnnecessaryJoints(gltf.scene);
+                    // 將廢棄的 removeUnnecessaryJoints 替換為官方建議的 combineSkeletons
+                    VRMUtils.combineSkeletons(gltf.scene);
 
                     // 設定陰影與視錐體剔除
                     vrm.scene.traverse((obj) => {
