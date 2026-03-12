@@ -506,13 +506,31 @@
             }
         }
 
+        // --- 解決 iOS Safari 垃圾回收 (GC) Bug，避免中斷 ---
+        // 宣告在全域，防止 iOS 將正在播放的語音資源偷偷回收掉
+        window.keepAliveUtterances = [];
+
         function speakAndLipSync(text) {
             window.speechSynthesis.cancel();
+            
+            // 確保語音引擎處於活躍狀態
+            if (window.speechSynthesis.resume) {
+                window.speechSynthesis.resume();
+            }
+
             const utterance = new SpeechSynthesisUtterance(text);
+            // 推入全域陣列保存參考，徹底解決 Safari 不觸發 onstart 的 Bug
+            window.keepAliveUtterances.push(utterance);
+            
             utterance.lang = 'zh-TW';
-            utterance.onstart = () => isSpeaking = true;
-            utterance.onend = () => isSpeaking = false;
-            // 加入錯誤事件監聽，避免 iOS 阻擋時卡住狀態
+            utterance.onstart = () => { isSpeaking = true; };
+            utterance.onend = () => { 
+                isSpeaking = false; 
+                // 清理舊有的參考以避免記憶體無限增長
+                if (window.keepAliveUtterances.length > 20) {
+                    window.keepAliveUtterances.length = 0;
+                }
+            };
             utterance.onerror = (e) => {
                 console.warn('語音播放被中斷或發生錯誤:', e);
                 isSpeaking = false;
@@ -520,35 +538,36 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // --- 針對 iOS Safari 的語音解鎖機制 ---
-        let isAudioUnlocked = false;
+        // --- 針對 iOS Safari 的語音解鎖與防阻擋機制 ---
         function unlockAudioForIOS() {
-            if (!isAudioUnlocked) {
-                // 播放一段空的、靜音的語音來取得 iOS 瀏覽器的播放權限
-                const silentUtterance = new SpeechSynthesisUtterance('');
-                silentUtterance.volume = 0;
-                window.speechSynthesis.speak(silentUtterance);
-                isAudioUnlocked = true;
-                
-                // 取得權限後移除監聽器
-                document.removeEventListener('touchstart', unlockAudioForIOS);
-                document.removeEventListener('click', unlockAudioForIOS);
-            }
+            // 在發送請求前，強制觸發一次簡短的空語音並重置引擎，以繞過 iOS 非同步等待的阻擋
+            if (window.speechSynthesis.resume) window.speechSynthesis.resume();
+            
+            // 使用空白鍵字元 ' ' 比空字串 '' 更容易被 iOS 正確判定為有效音訊
+            const silentUtterance = new SpeechSynthesisUtterance(' ');
+            silentUtterance.volume = 0;
+            silentUtterance.rate = 2; // 加快結束
+            window.speechSynthesis.speak(silentUtterance);
         }
         
-        // 綁定在第一次觸控或點擊時解鎖
-        document.addEventListener('touchstart', unlockAudioForIOS, { once: true });
-        document.addEventListener('click', unlockAudioForIOS, { once: true });
+        // 網頁初始觸控/點擊時嘗試解鎖一次
+        const initialUnlock = () => {
+            unlockAudioForIOS();
+            document.removeEventListener('touchstart', initialUnlock);
+            document.removeEventListener('click', initialUnlock);
+        };
+        document.addEventListener('touchstart', initialUnlock, { once: true });
+        document.addEventListener('click', initialUnlock, { once: true });
         // ------------------------------------
 
         sendBtn.addEventListener('click', () => {
-            unlockAudioForIOS(); // 雙重保險：點擊發送時也強制解鎖一次
+            unlockAudioForIOS(); // 關鍵：每次點擊發送，都強制喚醒一次引擎
             sendMessage();
         });
         
         chatInput.addEventListener('keypress', (e) => { 
             if (e.key === 'Enter') {
-                unlockAudioForIOS(); // 雙重保險
+                unlockAudioForIOS(); // 關鍵：每次按 Enter 也強制喚醒引擎
                 sendMessage(); 
             }
         });
