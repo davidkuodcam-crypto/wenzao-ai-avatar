@@ -617,7 +617,10 @@
         let isRecording = false;
         let silenceTimeout = null;
 
-        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        // 偵測是否為手機或平板裝置 (包含 iPad 與 Android 行動裝置)
+        const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+
+        if (('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) && !isMobileOrTablet) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-TW';
@@ -693,9 +696,9 @@
                 }
             };
         } else {
-            // 不支援語音輸入的瀏覽器 (隱藏麥克風按鈕)
+            // 不支援語音輸入的瀏覽器，或是手機/平板裝置 (隱藏麥克風按鈕)
             if(micBtn) micBtn.style.display = 'none';
-            console.warn("此瀏覽器不支援 Web Speech API 語音輸入");
+            console.warn("此瀏覽器不支援 Web Speech API 語音輸入，或是正在使用行動裝置(手機/平板)已自動隱藏");
         }
 
         function resetMicUI() {
