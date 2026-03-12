@@ -13,6 +13,10 @@
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         .pointer-events-auto { pointer-events: auto; }
+        
+        /* 隱藏滾動條但保留滾動功能 (針對對話框內部) */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
     <!-- 設定 Three.js 與 Three-VRM 的 Import Map -->
@@ -33,18 +37,21 @@
 
     <!-- UI 介面層 -->
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
-        <!-- 對話氣泡窗 (預設隱藏) -->
-        <!-- 針對手機調整寬度：w-[calc(100%-2rem)] 確保左右留白 -->
-        <div id="chat-bubble" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/20 max-w-lg w-[calc(100%-2rem)] sm:w-full hidden pointer-events-auto transition-all duration-300 z-10">
-            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
-            <p id="chat-text" class="text-base leading-relaxed"></p>
-        </div>
+        
+        <!-- 底部中央對話整合容器 (將對話氣泡與輸入框包覆在一起，並提高透明度) -->
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-black/30 backdrop-blur-md p-4 rounded-3xl shadow-2xl border border-white/10 z-10 transition-all duration-300">
+            
+            <!-- 對話氣泡窗 (預設隱藏，改為在整合容器內部) -->
+            <div id="chat-bubble" class="hidden px-2 max-h-48 overflow-y-auto no-scrollbar">
+                <p id="chat-text" class="text-base text-white leading-relaxed drop-shadow-md"></p>
+            </div>
 
-        <!-- 底部中央對話輸入框 -->
-        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex gap-2 z-10">
-            <!-- 調整為 text-base 避免 iOS 自動縮放 -->
-            <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-base" />
-            <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-base shrink-0">發送</button>
+            <!-- 底部對話輸入框 -->
+            <div class="flex gap-2 w-full">
+                <!-- 調整為更透明的玻璃質感 -->
+                <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-black/40 text-white px-4 py-3 rounded-2xl border border-white/10 focus:outline-none focus:border-blue-400 focus:bg-black/60 shadow-inner text-base transition-colors" />
+                <button id="send-btn" class="bg-blue-600/80 hover:bg-blue-500/90 backdrop-blur text-white px-5 py-3 rounded-2xl shadow-lg transition-colors font-bold text-base shrink-0">發送</button>
+            </div>
         </div>
 
         <div class="flex justify-between items-end w-full">
