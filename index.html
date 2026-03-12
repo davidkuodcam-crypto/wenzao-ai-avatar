@@ -151,6 +151,10 @@
             const delta = clock.getDelta();
             const time = clock.getElapsedTime();
             if (currentVrm) {
+                if (currentVrm.humanoid) {
+                    const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
+                    if (chest) chest.rotation.x = Math.sin(time * 1.5) * 0.015;
+                }
                 if (currentVrm.expressionManager) {
                     expTimer += delta;
                     if (expTimer > 4.0) {
@@ -193,16 +197,16 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemInstruction: { parts: [{ text: "你是一個 3D 虛擬助教。請用繁體中文回答，你的回答「必須」是純 JSON 格式，格式範例：{\"reply\": \"回答內容\", \"expression\": \"happy\", \"specialAction\": \"none\", \"actionDuration\": 3}。情緒可選: happy, angry, sad, relaxed, surprised, neutral。動作可選: none, blink, aa。" }] }
+                        systemInstruction: { parts: [{ text: "你是一個 3D 虛擬助教。請用繁體中文回答，你的回答「必須」是純 JSON 格式，不含 markdown 標籤。格式範例：{\"reply\": \"回答內容\", \"expression\": \"happy\", \"specialAction\": \"none\", \"actionDuration\": 3}。情緒可選: happy, angry, sad, relaxed, surprised, neutral。動作可選: none, blink, aa。" }] }
                     })
                 });
 
                 const rawData = await response.json();
                 if (rawData.error) throw new Error(rawData.error);
 
-                // 根據最新後端回傳格式解析內容
+                // 解析 Google 回傳的原始文字內容
                 const aiResultString = rawData.candidates[0].content.parts[0].text;
-                // 清理可能包含的 Markdown 語法標記
+                // 清理可能包含的 Markdown 語法標記（防呆）
                 const jsonContent = aiResultString.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
                 const res = JSON.parse(jsonContent);
 
