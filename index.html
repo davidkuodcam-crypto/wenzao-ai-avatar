@@ -102,9 +102,9 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        // 修正：強化身分設定優先權，明確定義名字
-        let systemPromptText = "重要：你的名字『唯一』叫做『美智』。你是一個擁有 3D 虛擬身體的 AI 虛擬助教。當使用者詢問你的名字時，請務必堅定地回答『我叫美智』。請注意：『文藻AI虛擬助教』是你的身分職稱，絕非你的名字。若使用者要求你做動作，請自然地配合。對於不知道的資訊，請誠實回答「我不知道」，絕不可編造。";
-        let openingPhrase = "您好！我是美智，文藻的 AI 虛擬助教，很高興為您服務！";
+        // 強化實體意識與誠實原則
+        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。";
+        let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
 
         // 表情控制變數
         let expressionTimer = 0;
@@ -145,12 +145,10 @@
 
                 if (promptRes && promptRes.ok) {
                     const fullPromptText = await promptRes.text();
-                    // 使用正則表達式，同時支援 === 或 --- 作為分隔符號
-                    const parts = fullPromptText.split(/[=-]{3}\s*提示詞\s*[=-]{3}/);
+                    const parts = fullPromptText.split('=== 提示詞 ===');
                     if (parts.length > 1) {
-                        openingPhrase = parts[0].replace(/[=-]{3}\s*開場詞\s*[=-]{3}/, '').trim();
-                        // 修正關鍵：將名字「美智」的指令置於提示詞的最前方，確保 AI 優先讀取
-                        systemPromptText = "你的唯一名字是『美智』。請記住：『文藻AI虛擬助教』只是你的職稱職位，並非你的名字。當被問及姓名時，請回答『美智』。" + parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
+                        openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
+                        systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
                     }
@@ -375,7 +373,7 @@
                         activeSpecialAction = null;
                     }
 
-                    // 4. 講話時強制微笑且同步嘴型，不講話時才隨機表情
+                    // 4. [修正]：講話時強制微笑且同步嘴型，不講話時才隨機表情
                     if (isSpeaking) {
                         // 講話時固定微笑 (happy)，防止出現生氣表情
                         currentVrm.expressionManager.setValue('happy', 1.0);
