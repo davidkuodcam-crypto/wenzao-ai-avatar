@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文藻 AI 虛擬助教</title>
+    <title>VRM 1.0 虛擬角色自動檢視器</title>
     <!-- 引入 Tailwind CSS 作為 UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,9 +11,6 @@
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 0; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
         .pointer-events-auto { pointer-events: auto; }
-        
-        /* 隱藏原始的 file input */
-        input[type="file"] { display: none; }
     </style>
 
     <!-- 設定 Three.js 與 Three-VRM 的 Import Map -->
@@ -41,30 +38,58 @@
 
         <!-- 底部中央對話輸入框 -->
         <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-lg pointer-events-auto flex gap-2 z-10">
-            <input type="text" id="chat-input" placeholder="與助教對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-sm" />
+            <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-gray-900/80 backdrop-blur text-white px-4 py-3 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 shadow-lg text-sm" />
             <button id="send-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl shadow-lg transition-colors font-bold text-sm shrink-0">發送</button>
         </div>
 
         <div class="flex justify-between items-end w-full">
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex flex-col gap-3">
                 <div class="flex items-center justify-between">
-                    <h1 class="text-lg font-bold text-blue-400">文藻 AI 虛擬助教</h1>
+                    <h1 class="text-lg font-bold text-blue-400">AI 虛擬助教</h1>
+                    <div class="flex items-center gap-3">
+                        <!-- 設定按鈕 -->
+                        <button id="settings-btn" class="text-gray-400 hover:text-white transition-colors" title="設定 API Key">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </button>
+                        <!-- 連線狀態指示燈 -->
+                        <div id="status-light" class="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)] transition-colors" title="API狀態：未連線"></div>
+                    </div>
                 </div>
-                <p class="text-xs text-gray-300">支援語音對話與表情連動。正在使用 Gemini 2.5 Flash。</p>
+                <p class="text-xs text-gray-300">系統已自動載入預設角色模型。您可以直接與其展開對話。</p>
                 
-                <div id="loading-status" class="mt-2 text-xs text-yellow-400 hidden flex items-center justify-center">
-                    載入模型中...
+                <div id="loading-status" class="mt-3 text-xs text-yellow-400 flex items-center justify-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    模型載入中...
                 </div>
-                <div id="error-status" class="mt-2 text-xs text-red-400 hidden text-center"></div>
+                <div id="error-status" class="mt-3 text-xs text-red-400 hidden text-center"></div>
             </div>
 
             <!-- 操作說明 -->
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
                 <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
-                    <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉 | <span class="text-blue-400 font-bold">右鍵</span> : 平移</li>
-                    <li><span class="text-blue-400 font-bold">滾輪</span> : 縮放視角</li>
+                    <li><span class="text-blue-400 font-bold">左鍵</span> : 旋轉視角 / <span class="text-blue-400 font-bold">右鍵</span> : 平移</li>
+                    <li><span class="text-blue-400 font-bold">滾輪</span> : 縮放</li>
                 </ul>
+            </div>
+        </div>
+
+        <!-- 設定 Modal -->
+        <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden pointer-events-auto">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-sm w-full shadow-2xl">
+                <h2 class="text-xl font-bold text-white mb-4">API 連線設定</h2>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-2">Gemini API Key</label>
+                    <input type="password" id="modal-api-key" placeholder="輸入 API Key (選填)" class="w-full bg-gray-800 text-white px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-400 text-sm" />
+                </div>
+                <div id="modal-status" class="mb-4 text-sm hidden"></div>
+                <div class="flex justify-end gap-3">
+                    <button id="modal-cancel-btn" class="px-4 py-2 rounded-xl text-gray-300 hover:bg-gray-800 transition-colors text-sm font-medium">取消</button>
+                    <button id="modal-connect-btn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-bold shadow-lg flex items-center gap-2">連線測試</button>
+                </div>
             </div>
         </div>
     </div>
@@ -75,16 +100,34 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-        let scene, camera, renderer, controls, currentVrm;
+        // --- 全域變數 ---
+        let scene, camera, renderer, controls;
+        let currentVrm = undefined;
+        let particles;
         const clock = new THREE.Clock();
 
-        let expTimer = 0, expBlend = 1, curExp = 'neutral', tgtExp = 'neutral';
-        const exps = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
-        let specAct = null, specTimer = 0;
-        let isSpeaking = false, lipSyncTimer = 0, conversationHistory = [];
+        // 表情控制變數
+        let expressionTimer = 0;
+        let expressionBlend = 1;
+        let currentExpression = 'neutral';
+        let targetExpression = 'neutral';
+        const expressions = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
 
+        // 特殊動作控制變數
+        let activeSpecialAction = null;
+        let specialActionTimer = 0;
+
+        // 對話與語音變數
+        const apiKey = ""; 
+        let validatedApiKey = ""; 
+        let isSpeaking = false;
+        let lipSyncTimer = 0;
+        let conversationHistory = [];
+
+        // --- 初始化場景 ---
         function init() {
             const container = document.getElementById('canvas-container');
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xdbe3ea);
             scene.fog = new THREE.Fog(0xdbe3ea, 10, 50);
@@ -96,148 +139,368 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
             container.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
+            controls.screenSpacePanning = true;
             controls.target.set(0, 1.3, 0); 
             controls.update();
 
-            const light = new THREE.DirectionalLight(0xfff0dd, 2.0);
-            light.position.set(2, 5, 3);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            setupEnvironment();
 
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
+            window.addEventListener('resize', onWindowResize);
+
+            // 自動載入根目錄的 VRM 模型
+            // 修正：使用明確的相對路徑。
+            // 針對預覽環境（如 Blob），我們嘗試使用您提供的 Vercel 網址作為回退，確保預覽也能顯示。
+            let modelUrl = './AvatarSample_C.vrm';
+            
+            if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
+                modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_C.vrm';
+            }
+            
+            loadVRM(modelUrl);
 
             animate();
-
-            // 載入模型邏輯
-            if (window.location.protocol.startsWith('http')) {
-                loadVRM('./AvatarSample_C.vrm');
-            } else {
-                const errorUI = document.getElementById('error-status');
-                errorUI.innerHTML = '【預覽模式】沙盒環境限制讀取本地模型。<br>Vercel 部署後即可正常載入！';
-                errorUI.classList.remove('hidden');
-            }
         }
 
+        function setupEnvironment() {
+            const ambientLight = new THREE.HemisphereLight(0xffffff, 0x999999, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xfff0dd, 2.0);
+            directionalLight.position.set(2, 5, 3);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.bias = -0.001;
+            scene.add(directionalLight);
+
+            const fillLight = new THREE.DirectionalLight(0xcceeff, 1.2);
+            fillLight.position.set(-2, 2, 2);
+            scene.add(fillLight);
+
+            const floorGeometry = new THREE.PlaneGeometry(50, 50);
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x8a95a5, roughness: 0.6, metalness: 0.1 });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const gridHelper = new THREE.GridHelper(50, 100, 0xb0bac5, 0x8a95a5);
+            gridHelper.position.y = 0.01;
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.5;
+            scene.add(gridHelper);
+
+            const pedestalGeometry = new THREE.CylinderGeometry(0.8, 1, 0.1, 32);
+            const pedestalMaterial = new THREE.MeshStandardMaterial({ color: 0xdbe3ea, roughness: 0.3, metalness: 0.2 });
+            const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
+            pedestal.position.y = 0.05;
+            pedestal.receiveShadow = true;
+            pedestal.castShadow = true;
+            scene.add(pedestal);
+
+            const ringGeometry = new THREE.RingGeometry(0.85, 0.9, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = 0.11;
+            scene.add(ring);
+
+            const particleCount = 200;
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            const particleColors = new Float32Array(particleCount * 3);
+            const color = new THREE.Color();
+            
+            for(let i = 0; i < particleCount; i++) {
+                particlePositions[i*3] = (Math.random() - 0.5) * 10;
+                particlePositions[i*3+1] = Math.random() * 5;
+                particlePositions[i*3+2] = (Math.random() - 0.5) * 10;
+                color.setHSL(Math.random(), 1.0, 0.5);
+                particleColors[i*3] = color.r;
+                particleColors[i*3+1] = color.g;
+                particleColors[i*3+2] = color.b;
+            }
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({ size: 0.08, transparent: true, opacity: 0.9, vertexColors: true });
+            particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+        }
+
+        // --- 載入 VRM 模型 ---
         function loadVRM(url) {
-            document.getElementById('loading-status').classList.remove('hidden');
+            const loadingUI = document.getElementById('loading-status');
+            const errorUI = document.getElementById('error-status');
+            loadingUI.classList.remove('hidden');
+            errorUI.classList.add('hidden');
+
             const loader = new GLTFLoader();
             loader.register((parser) => new VRMLoaderPlugin(parser));
-            loader.load(url, (gltf) => {
-                const vrm = gltf.userData.vrm;
-                if (currentVrm) scene.remove(currentVrm.scene);
-                VRMUtils.combineSkeletons(gltf.scene);
-                vrm.scene.rotation.y = Math.PI;
-                vrm.scene.position.y = 0.1;
-                scene.add(vrm.scene);
-                currentVrm = vrm;
-                document.getElementById('loading-status').classList.add('hidden');
-            }, undefined, (error) => {
-                document.getElementById('loading-status').classList.add('hidden');
-                document.getElementById('error-status').innerHTML = '模型載入失敗';
-                document.getElementById('error-status').classList.remove('hidden');
-            });
+
+            loader.load(
+                url,
+                (gltf) => {
+                    const vrm = gltf.userData.vrm;
+                    if (currentVrm) {
+                        scene.remove(currentVrm.scene);
+                    }
+                    VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                    VRMUtils.removeUnnecessaryJoints(gltf.scene);
+
+                    vrm.scene.traverse((obj) => {
+                        obj.frustumCulled = false;
+                        if (obj.isMesh) {
+                            obj.castShadow = true;
+                            obj.receiveShadow = true;
+                        }
+                    });
+
+                    // 初始 A-pose
+                    if (vrm.humanoid) {
+                        const leftUpperArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+                        const rightUpperArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+                        if (leftUpperArm) leftUpperArm.rotation.z = -1.1; 
+                        if (rightUpperArm) rightUpperArm.rotation.z = 1.1; 
+                    }
+
+                    vrm.scene.position.y = 0.1;
+                    vrm.scene.rotation.y = Math.PI;
+                    scene.add(vrm.scene);
+                    currentVrm = vrm;
+
+                    loadingUI.classList.add('hidden');
+                    console.log('模型自動載入成功!');
+                },
+                undefined,
+                (error) => {
+                    console.error('模型載入失敗:', error);
+                    loadingUI.classList.add('hidden');
+                    errorUI.textContent = '無法載入預設模型 AvatarSample_C.vrm，請確認檔案路徑。';
+                    errorUI.classList.remove('hidden');
+                }
+            );
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
             const time = clock.getElapsedTime();
+
             if (currentVrm) {
                 if (currentVrm.humanoid) {
                     const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
                     if (chest) chest.rotation.x = Math.sin(time * 1.5) * 0.015;
                 }
-                if (currentVrm.expressionManager) {
-                    expTimer += delta;
-                    if (expTimer > 4.0) {
-                        expTimer = 0; curExp = tgtExp;
-                        tgtExp = exps[Math.floor(Math.random() * exps.length)];
-                        expBlend = 0;
-                    }
-                    if (expBlend < 1.0) expBlend += delta * 2.0;
-                    exps.forEach(e => currentVrm.expressionManager.setValue(e, 0));
-                    currentVrm.expressionManager.setValue(curExp, 1 - expBlend);
-                    currentVrm.expressionManager.setValue(tgtExp, expBlend);
 
-                    if (specTimer > 0 && specAct) {
-                        specTimer -= delta;
-                        currentVrm.expressionManager.setValue(specAct, 1.0);
+                if (currentVrm.expressionManager) {
+                    expressionTimer += delta;
+                    if (expressionTimer > 4.0) {
+                        expressionTimer = 0;
+                        currentExpression = targetExpression;
+                        targetExpression = expressions[Math.floor(Math.random() * expressions.length)];
+                        expressionBlend = 0;
                     }
-                    if (isSpeaking && specAct !== 'aa') {
+                    if (expressionBlend < 1.0) {
+                        expressionBlend += delta * 2.0; 
+                        if (expressionBlend > 1.0) expressionBlend = 1.0;
+                    }
+                    expressions.forEach(exp => currentVrm.expressionManager.setValue(exp, 0));
+                    currentVrm.expressionManager.setValue(currentExpression, 1.0 - expressionBlend);
+                    currentVrm.expressionManager.setValue(targetExpression, expressionBlend);
+                }
+
+                if (currentVrm.expressionManager) {
+                    if (specialActionTimer > 0 && activeSpecialAction) {
+                        specialActionTimer -= delta;
+                        currentVrm.expressionManager.setValue(activeSpecialAction, 1.0);
+                    } else if (activeSpecialAction) {
+                        currentVrm.expressionManager.setValue(activeSpecialAction, 0);
+                        activeSpecialAction = null;
+                    }
+
+                    if (isSpeaking) {
                         lipSyncTimer += delta * 15;
-                        currentVrm.expressionManager.setValue('aa', (Math.sin(lipSyncTimer) + 1) / 2 * 0.7);
+                        const mouthOpenness = (Math.sin(lipSyncTimer) + 1) / 2; 
+                        if (activeSpecialAction !== 'aa') {
+                            currentVrm.expressionManager.setValue('aa', mouthOpenness * (Math.random() * 0.4 + 0.6));
+                        }
+                    } else if (activeSpecialAction !== 'aa') {
+                        currentVrm.expressionManager.setValue('aa', 0);
                     }
                 }
                 currentVrm.update(delta);
             }
+
+            if (particles) particles.rotation.y += delta * 0.05;
+            controls.update();
             renderer.render(scene, camera);
         }
 
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Gemini API 互動邏輯 ---
         const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatBubble = document.getElementById('chat-bubble');
+        const chatText = document.getElementById('chat-text');
+        const statusLight = document.getElementById('status-light');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const modalApiKey = document.getElementById('modal-api-key');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const modalConnectBtn = document.getElementById('modal-connect-btn');
+        const modalStatus = document.getElementById('modal-status');
+
+        function setStatus(status) {
+            statusLight.className = 'w-3 h-3 rounded-full transition-colors ';
+            if (status === 'connecting') statusLight.className += 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]';
+            else if (status === 'success') statusLight.className += 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]';
+            else if (status === 'error') statusLight.className += 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]';
+            else statusLight.className += 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]';
+        }
+
+        async function fetchWithBackoff(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                    if (response.status === 400 || response.status === 403) throw new Error(`API Error ${response.status}`);
+                    if (i === maxRetries - 1) throw new Error(`Failed with ${response.status}`);
+                } catch (error) {
+                    if (error.message.includes('400') || error.message.includes('403')) throw error;
+                    if (i === maxRetries - 1) throw error;
+                }
+                await new Promise(r => setTimeout(r, delays[i]));
+            }
+        }
+
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+            modalStatus.classList.add('hidden');
+            modalApiKey.value = validatedApiKey || apiKey;
+        });
+
+        modalCancelBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+        modalConnectBtn.addEventListener('click', async () => {
+            const testKey = modalApiKey.value.trim() || apiKey;
+            const modelName = modalApiKey.value.trim() ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
+            modalConnectBtn.disabled = true;
+            modalStatus.classList.remove('hidden');
+            modalStatus.textContent = '正在驗證連線...';
+            setStatus('connecting');
+
+            try {
+                const response = await fetchWithBackoff(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${testKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "ping" }] }] })
+                });
+                if (!response.ok) throw new Error();
+                validatedApiKey = testKey;
+                setStatus('success');
+                modalStatus.textContent = '連線成功！';
+                setTimeout(() => {
+                    settingsModal.classList.add('hidden');
+                    modalConnectBtn.disabled = false;
+                }, 800);
+            } catch (error) {
+                setStatus('error');
+                modalStatus.textContent = '連線失敗，請檢查 Key。';
+                modalConnectBtn.disabled = false;
+            }
+        });
+
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (!text) return;
+            if (!validatedApiKey && !apiKey) {
+                chatBubble.classList.remove('hidden');
+                chatText.innerHTML = `<span class="text-red-400">系統提示：請點擊齒輪按鈕設定 API Key。</span>`;
+                return;
+            }
+            
+            const userKey = validatedApiKey || apiKey;
+            const modelName = (validatedApiKey && validatedApiKey !== apiKey) ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
+
             chatInput.value = '';
-            document.getElementById('chat-bubble').classList.remove('hidden');
-            document.getElementById('chat-text').innerHTML = `你：${text}<br><span class="text-gray-400">思考中...</span>`;
+            chatBubble.classList.remove('hidden');
+            chatText.innerHTML = `<span class="text-blue-300">你：</span>${text}<br><span class="text-gray-400">正在思考中...</span>`;
+            setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
             try {
-                // 發送請求至後端代理 api/chat.js
-                const response = await fetch('/api/chat', {
+                const response = await fetchWithBackoff(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${userKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemInstruction: { parts: [{ text: "你是一個 3D 虛擬助教。請用繁體中文回答，你的回答「必須」是純 JSON 格式，不含 markdown 標籤。格式範例：{\"reply\": \"回答內容\", \"expression\": \"happy\", \"specialAction\": \"none\", \"actionDuration\": 3}。情緒可選: happy, angry, sad, relaxed, surprised, neutral。動作可選: none, blink, aa。" }] }
+                        systemInstruction: { parts: [{ text: "你是一個專業的 AI 虛擬助教，回答要簡短生動。若使用者要求動作（如閉眼、張口），請在 JSON 中設定。" }] },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    reply: { type: "STRING" },
+                                    expression: { type: "STRING" },
+                                    specialAction: { type: "STRING" },
+                                    actionDuration: { type: "NUMBER" }
+                                },
+                                required: ["reply", "expression", "specialAction", "actionDuration"]
+                            }
+                        }
                     })
                 });
 
-                const rawData = await response.json();
-                if (rawData.error) throw new Error(rawData.error);
-
-                // 解析 Google 回傳的原始文字內容
-                const aiResultString = rawData.candidates[0].content.parts[0].text;
-                // 清理可能包含的 Markdown 語法標記（防呆）
-                const jsonContent = aiResultString.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
-                const res = JSON.parse(jsonContent);
-
-                conversationHistory.push({ role: "model", parts: [{ text: aiResultString }] });
+                const data = await response.json();
+                const aiResponse = JSON.parse(data.candidates[0].content.parts[0].text);
+                const replyText = aiResponse.reply;
                 
-                // 更新表情與動作
-                if (exps.includes(res.expression)) {
-                    tgtExp = res.expression;
-                    expBlend = 0; expTimer = -5;
+                if (expressions.includes(aiResponse.expression)) {
+                    targetExpression = aiResponse.expression;
+                    expressionBlend = 0;
+                    expressionTimer = -10.0; 
                 }
-                specAct = res.specialAction !== 'none' ? res.specialAction : null;
-                specTimer = res.actionDuration || 0;
+                if (aiResponse.specialAction !== 'none') {
+                    activeSpecialAction = aiResponse.specialAction;
+                    specialActionTimer = aiResponse.actionDuration || 3;
+                }
 
-                document.getElementById('chat-text').innerHTML = `助教：${res.reply}`;
-                speak(res.reply);
+                setStatus('success');
+                chatText.innerHTML = `<span class="text-green-300">角色：</span>${replyText}`;
+                speakAndLipSync(replyText);
+                conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify(aiResponse) }] });
             } catch (error) {
-                document.getElementById('chat-text').innerHTML = `<span class="text-red-400">連線失敗: ${error.message}</span>`;
+                setStatus('error');
+                chatText.innerHTML = `<span class="text-red-400">連線失敗。</span>`;
+                conversationHistory.pop();
             }
         }
 
-        function speak(text) {
+        function speakAndLipSync(text) {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'zh-TW';
-            u.onstart = () => { isSpeaking = true; };
-            u.onend = () => { isSpeaking = false; };
-            window.speechSynthesis.speak(u);
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-TW';
+            utterance.onstart = () => isSpeaking = true;
+            utterance.onend = () => isSpeaking = false;
+            window.speechSynthesis.speak(utterance);
         }
 
-        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        sendBtn.addEventListener('click', sendMessage);
         chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
         init();
     </script>
 </body>
