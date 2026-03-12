@@ -1,77 +1,85 @@
 /**
- * Vercel Serverless Function: api/chat.js
- * 修復說明：
- * 1. 根據使用者需求，將模型名稱更正為 'gemini-2.5-flash-preview-09-2025'。
- * 2. 增加對 API 回傳內容的檢查，避免解析非 JSON 格式導致的錯誤。
+ * 根據使用者要求更新 CORS 白名單的 api/chat.js
  */
 
 export default async function handler(req, res) {
-  // 只允許 POST 請求
+  // ==========================================
+  // 1. CORS 安全防護設定
+  // ==========================================
+  const allowedOrigins = [
+    'https://wenzao-ai-avatar.vercel.app',   // 您的正式網址
+    'https://davidkuodcam-crypto.github.io', // GitHub 網域
+    'http://localhost:3000',                 // 本機測試
+    'http://127.0.0.1:5500'                  // Live Server 測試
+  ];
+
+  const requestOrigin = req.headers.origin;
+  if (allowedOrigins.includes(requestOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+  }
+
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // 從 Vercel 環境變數讀取 API Key
+  // ==========================================
+  // 2. 呼叫 Gemini
+  // ==========================================
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: '伺服器端未設定 GEMINI_API_KEY 環境變數。' });
+    return res.status(500).json({ error: 'Vercel 環境變數中找不到 GEMINI_API_KEY。' });
   }
 
-  const { contents, systemInstruction } = req.body;
-
   try {
-    // 使用指定的 gemini-2.5-flash-preview-09-2025 模型識別碼
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const GEMINI_MODEL = "gemini-2.5-flash"; 
+    const GOOGLE_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(apiUrl, {
+    const requestBody = req.body;
+
+    // 強制啟用 Google Search 工具
+    if (!requestBody.tools) {
+        requestBody.tools = [{ google_search: {} }];
+    }
+
+    const response = await fetch(GOOGLE_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: contents,
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              reply: { type: "STRING", description: "回覆給使用者的文字" },
-              expression: { type: "STRING", description: "情緒表情: neutral, happy, angry, sad, relaxed, surprised" },
-              specialAction: { type: "STRING", description: "動作: none, blink, blinkLeft, blinkRight, aa" },
-              actionDuration: { type: "NUMBER", description: "動作持續秒數" }
-            },
-            required: ["reply", "expression", "specialAction", "actionDuration"]
-          }
-        }
-      })
+      body: JSON.stringify(requestBody),
     });
 
-    // 取得原始回傳內容以進行檢查
     const data = await response.json();
-    
-    // 檢查 Google API 是否回傳錯誤訊息
-    if (data.error) {
-      console.error('Google API Error:', data.error);
-      return res.status(response.status).json({ 
-        error: `Google API 錯誤: ${data.error.message}`,
-        details: data.error 
-      });
+
+    if (!response.ok) {
+        const googleError = data.error?.message || 'Unknown Gemini API Error';
+        return res.status(500).json({ error: `Google API Error: ${googleError}` });
     }
 
-    // 取得 AI 生成的 JSON 字串
+    // ==========================================
+    // 3. 解析 JSON 回傳給前端
+    // ==========================================
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!resultText) {
-      throw new Error('AI 未能產生有效的回覆內容。');
+      throw new Error('AI 未回傳內容');
     }
 
-    // 解析並回傳給前端
+    // 解析模型產生的 JSON 字串並直接回傳物件
     const jsonResponse = JSON.parse(resultText);
-    res.status(200).json(jsonResponse);
+    return res.status(200).json(jsonResponse);
 
   } catch (error) {
-    console.error('後端代理錯誤:', error.message);
-    res.status(500).json({ 
-      error: '伺服器內部錯誤', 
-      details: error.message 
-    });
+    console.error("Server Error:", error);
+    return res.status(500).json({ error: `Server Error: ${error.message}` });
   }
 }
