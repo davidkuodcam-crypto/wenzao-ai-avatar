@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <!-- 針對行動裝置優化：禁止縮放，防止 iOS 點擊輸入框時自動放大畫面 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VRM 1.0 虛擬角色自動檢視器</title>
+    <title>AI 虛擬助教</title>
     <!-- 引入 Tailwind CSS 作為 UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -168,7 +168,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `<span class="text-green-300">角色：</span>${openingPhrase}`;
+            chatText.innerHTML = `${openingPhrase}`;
             
             speakAndLipSync(openingPhrase);
             
@@ -494,7 +494,7 @@
                 }
 
                 setStatus('success');
-                chatText.innerHTML = `<span class="text-green-300">角色：</span>${replyText}`;
+                chatText.innerHTML = `${replyText}`;
                 speakAndLipSync(replyText);
                 
                 conversationHistory.push({ role: "model", parts: [{ text: jsonMatch ? jsonMatch[0] : aiText }] });
