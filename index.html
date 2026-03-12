@@ -43,6 +43,7 @@
             
             <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
             <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
+                <!-- 深藍色文字且粗細改為 font-medium -->
                 <p id="chat-text" class="text-lg text-blue-900 font-medium leading-relaxed drop-shadow-sm"></p>
             </div>
 
@@ -127,6 +128,9 @@
         let lipSyncTimer = 0;
         let conversationHistory = [];
 
+        // 新增全域變數，用於追蹤是否要自動重啟麥克風
+        let autoRestartMic = false;
+
         // --- 載入外部設定檔 (知識庫與提示詞) ---
         async function loadConfig() {
             try {
@@ -150,9 +154,11 @@
 
                 if (promptRes && promptRes.ok) {
                     const fullPromptText = await promptRes.text();
+                    // 使用正則表達式，同時支援 === 或 --- 作為分隔符號
                     const parts = fullPromptText.split(/[=-]{3}\s*提示詞\s*[=-]{3}/);
                     if (parts.length > 1) {
                         openingPhrase = parts[0].replace(/[=-]{3}\s*開場詞\s*[=-]{3}/, '').trim();
+                        // 修正關鍵：將名字「美智」的指令置於提示詞的最前方，確保 AI 優先讀取
                         systemPromptText = "你的唯一名字是『美智』。請記住：『文藻AI虛擬助教』只是你的職稱職位，並非你的名字。當被問及姓名時，請回答『美智』。" + parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
@@ -172,7 +178,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `${openingPhrase}`;
+            chatText.innerHTML = `${openingPhrase}`; // 已移除「角色：」
             
             speakAndLipSync(openingPhrase);
             
@@ -454,6 +460,7 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
+            // 修改使用者提示樣式
             chatText.innerHTML = `<span class="text-blue-800 text-sm opacity-70">你：${text}</span><br><span class="text-blue-900/60 text-sm animate-pulse">正在思考中...</span>`;
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
@@ -478,6 +485,7 @@
                 const aiText = data.candidates[0].content.parts[0].text;
                 let replyText = aiText;
                 
+                // 強大的 Regex 提取 JSON，並優先顯示 reply 欄位
                 const jsonMatch = aiText.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
@@ -501,6 +509,7 @@
                 }
 
                 setStatus('success');
+                // 更新顯示文字 (已移除 角色： 前綴)
                 chatText.innerHTML = `${replyText}`;
                 speakAndLipSync(replyText);
                 
@@ -535,10 +544,26 @@
             utterance.onend = () => { 
                 isSpeaking = false; 
                 if (window.keepAliveUtterances.length > 20) window.keepAliveUtterances.length = 0;
+                // 如果需要自動重啟麥克風，則在此時啟動
+                if (autoRestartMic && recognition && !isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.warn("自動重啟麥克風失敗:", e);
+                    }
+                }
             };
             utterance.onerror = (e) => {
                 console.warn('語音播放被中斷或發生錯誤:', e);
                 isSpeaking = false;
+                // 發生錯誤也嘗試重啟麥克風
+                if (autoRestartMic && recognition && !isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        console.warn("自動重啟麥克風失敗:", err);
+                    }
+                }
             };
             
             setTimeout(() => {
@@ -552,6 +577,14 @@
                     if (confirmStopCount > 3) {
                         isSpeaking = false;
                         clearInterval(speechCheckInterval);
+                        // 雙重檢查：確保因為某種原因 onend 沒觸發時，也能重啟麥克風
+                        if (autoRestartMic && recognition && !isRecording) {
+                            try {
+                                recognition.start();
+                            } catch (e) {
+                                console.warn("自動重啟麥克風失敗:", e);
+                            }
+                        }
                     }
                 } else {
                     confirmStopCount = 0;
@@ -582,12 +615,14 @@
         const micBtn = document.getElementById('mic-btn');
         let recognition = null;
         let isRecording = false;
+        let silenceTimeout = null;
 
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-TW';
-            recognition.interimResults = false; // 只取最終結果
+            recognition.interimResults = true; // 開啟以偵測說話進度
+            recognition.continuous = true;     // 持續聆聽，直到手動停止或超時
             recognition.maxAlternatives = 1;
 
             recognition.onstart = function() {
@@ -596,30 +631,65 @@
                 micBtn.classList.remove('bg-white/20', 'text-blue-900');
                 micBtn.classList.add('bg-red-500/80', 'text-white', 'animate-pulse');
                 chatInput.placeholder = "聆聽中... (請說話)";
+                resetSilenceTimeout();
             };
 
             recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
-                chatInput.value = transcript;
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                if (finalTranscript !== '') {
+                    // 如果有最終結果，附加到輸入框中 (這裡簡化為直接替換，避免重複)
+                    chatInput.value = finalTranscript;
+                } else if (interimTranscript !== '') {
+                    // 顯示暫時的結果
+                    chatInput.value = interimTranscript;
+                }
+
+                // 只要有結果進來，就重置靜音計時器
+                resetSilenceTimeout();
             };
 
             recognition.onerror = function(event) {
                 console.error("語音辨識錯誤:", event.error);
-                resetMicUI();
+                // 發生錯誤不一定要清空 autoRestartMic，但通常 no-speech 等錯誤會導致停止
                 if (event.error === 'not-allowed') {
                     alert('請允許麥克風權限才能使用語音輸入喔！');
+                    autoRestartMic = false;
+                }
+                // 避免在錯誤狀態下無限重啟
+                if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                     // 可選擇是否要處理無語音的情況
                 }
             };
 
             recognition.onend = function() {
                 isRecording = false;
+                clearTimeout(silenceTimeout);
                 resetMicUI();
+                
                 // 語音輸入結束後，若有文字則自動觸發發送
                 if (chatInput.value.trim() !== '') {
                     window.speechSynthesis.cancel();
                     isSpeaking = false;
                     unlockAudioForIOS();
                     sendMessage();
+                    chatInput.value = ''; // 發送後清空
+                } else if (autoRestartMic && !isSpeaking) {
+                    // 如果被意外中斷 (例如沒說話超時)，且設定為自動重啟，則再次啟動
+                     try {
+                        recognition.start();
+                    } catch (e) {
+                        console.warn("重啟麥克風失敗:", e);
+                    }
                 }
             };
         } else {
@@ -635,18 +705,38 @@
             chatInput.placeholder = "與角色對話...";
         }
 
+        // 靜音計時器：2秒不說話自動送出
+        function resetSilenceTimeout() {
+            clearTimeout(silenceTimeout);
+            if (isRecording) {
+                silenceTimeout = setTimeout(() => {
+                    if (recognition && isRecording) {
+                        recognition.stop(); // 停止錄音會觸發 onend，進而發送訊息
+                    }
+                }, 2000); // 2秒鐘
+            }
+        }
+
         if (micBtn) {
             micBtn.addEventListener('click', () => {
                 if (!recognition) return;
                 
                 if (isRecording) {
+                    // 使用者手動關閉麥克風
+                    autoRestartMic = false; // 取消自動重啟
                     recognition.stop();
                 } else {
+                    // 使用者手動開啟麥克風
+                    autoRestartMic = true;  // 設定為自動重啟模式
                     // 解鎖音訊並中斷目前AI說話
                     window.speechSynthesis.cancel();
                     isSpeaking = false;
                     unlockAudioForIOS();
-                    recognition.start();
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                         console.warn("麥克風啟動失敗:", e);
+                    }
                 }
             });
         }
@@ -655,6 +745,8 @@
         sendBtn.addEventListener('click', () => {
             window.speechSynthesis.cancel();
             isSpeaking = false;
+            // 手動發送文字時，取消麥克風自動重啟
+            autoRestartMic = false;
             if(isRecording && recognition) recognition.stop();
             unlockAudioForIOS();
             sendMessage();
@@ -664,10 +756,19 @@
             if (e.key === 'Enter') {
                 window.speechSynthesis.cancel();
                 isSpeaking = false;
+                // 手動發送文字時，取消麥克風自動重啟
+                autoRestartMic = false;
                 if(isRecording && recognition) recognition.stop();
                 unlockAudioForIOS();
                 sendMessage(); 
             }
+        });
+
+        // 監聽輸入框的改變，如果有手動輸入文字，則取消自動重啟麥克風
+        chatInput.addEventListener('input', () => {
+             if (chatInput.value.trim() !== '') {
+                 autoRestartMic = false;
+             }
         });
 
         init();
