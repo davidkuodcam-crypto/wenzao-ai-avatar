@@ -1,7 +1,7 @@
 /**
  * Vercel Serverless Function: api/chat.js
  * 修復說明：
- * 1. 將模型名稱更正為 'gemini-1.5-flash' 以確保在 v1beta 端點的相容性。
+ * 1. 根據使用者需求，將模型名稱更正為 'gemini-2.5-flash-preview-09-2025'。
  * 2. 增加對 API 回傳內容的檢查，避免解析非 JSON 格式導致的錯誤。
  */
 
@@ -20,8 +20,8 @@ export default async function handler(req, res) {
   const { contents, systemInstruction } = req.body;
 
   try {
-    // 使用目前最穩定的 gemini-1.5-flash 模型識別碼
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // 使用指定的 gemini-2.5-flash-preview-09-2025 模型識別碼
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
