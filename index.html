@@ -86,6 +86,11 @@
         let particles;
         const clock = new THREE.Clock();
 
+        // 知識庫與設定變數
+        let knowledgeBaseText = "";
+        let systemPromptText = "你是一個專業的 AI 虛擬助教，回答要簡短生動。若使用者要求動作（如閉眼、張口），請在 JSON 中設定。";
+        let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
+
         // 表情控制變數
         let expressionTimer = 0;
         let expressionBlend = 1;
@@ -102,9 +107,71 @@
         let lipSyncTimer = 0;
         let conversationHistory = [];
 
+        // --- 載入外部設定檔 (知識庫與提示詞) ---
+        async function loadConfig() {
+            try {
+                let promptUrl = './prompt.txt';
+                let kbUrl = './knowledgebase.txt';
+                
+                // 針對預覽環境（如 Blob），嘗試使用 Vercel 網址作為回退
+                if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
+                    promptUrl = 'https://wenzao-ai-avatar.vercel.app/prompt.txt';
+                    kbUrl = 'https://wenzao-ai-avatar.vercel.app/knowledgebase.txt';
+                }
+
+                // 並行發送請求以加快載入速度
+                const [promptRes, kbRes] = await Promise.all([
+                    fetch(promptUrl).catch(() => null),
+                    fetch(kbUrl).catch(() => null)
+                ]);
+
+                // 處理知識庫
+                if (kbRes && kbRes.ok) {
+                    knowledgeBaseText = await kbRes.text();
+                    console.log("知識庫載入成功");
+                }
+
+                // 處理提示詞與開場白
+                if (promptRes && promptRes.ok) {
+                    const fullPromptText = await promptRes.text();
+                    // 簡單的字串解析：尋找 "=== 開場詞 ===" 與 "=== 提示詞 ===" 區塊
+                    const parts = fullPromptText.split('=== 提示詞 ===');
+                    if (parts.length > 1) {
+                        openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
+                        systemPromptText = parts[1].trim();
+                    } else {
+                        systemPromptText = fullPromptText.trim();
+                    }
+                    console.log("提示詞載入成功");
+                }
+            } catch (error) {
+                console.warn("載入設定檔失敗，將使用預設設定", error);
+            }
+        }
+
+        // --- 觸發開場白 ---
+        function triggerOpeningPhrase() {
+            if (!openingPhrase) return;
+            
+            const chatBubble = document.getElementById('chat-bubble');
+            const chatText = document.getElementById('chat-text');
+            
+            chatBubble.classList.remove('hidden');
+            chatText.innerHTML = `<span class="text-green-300">角色：</span>${openingPhrase}`;
+            
+            // 語音播放與唇部同步
+            speakAndLipSync(openingPhrase);
+            
+            // 將開場白加入對話歷史中，讓 AI 知道自己說過什麼
+            conversationHistory.push({ role: "model", parts: [{ text: JSON.stringify({ reply: openingPhrase, expression: "happy", specialAction: "none", actionDuration: 3 }) }] });
+        }
+
         // --- 初始化場景 ---
-        function init() {
+        async function init() {
             const container = document.getElementById('canvas-container');
+
+            // 優先載入文字設定檔
+            await loadConfig();
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xdbe3ea);
@@ -254,6 +321,9 @@
 
                     loadingUI.classList.add('hidden');
                     console.log('模型自動載入成功!');
+                    
+                    // 模型載入完畢後，觸發開場白
+                    triggerOpeningPhrase();
                 },
                 undefined,
                 (error) => {
@@ -375,6 +445,9 @@
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
+            // 組合完整的系統提示詞 (包含從設定檔載入的 Prompt 與知識庫)
+            const fullSystemInstruction = `${systemPromptText}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+
             try {
                 // 向您在 Vercel 部署的 Serverless 函式發送請求
                 const response = await fetchWithBackoff(`/api/chat`, {
@@ -382,7 +455,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: conversationHistory,
-                        systemInstruction: { parts: [{ text: "你是一個專業的 AI 虛擬助教，回答要簡短生動。若使用者要求動作（如閉眼、張口），請在 JSON 中設定。" }] },
+                        systemInstruction: { parts: [{ text: fullSystemInstruction }] },
                         generationConfig: {
                             responseMimeType: "application/json",
                             responseSchema: {
