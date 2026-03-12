@@ -48,7 +48,7 @@
         <div class="flex justify-between items-end w-full">
             <div class="bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex flex-col gap-3">
                 <div class="flex items-center justify-between">
-                    <h1 class="text-lg font-bold text-blue-400">VRM 1.0 檢視器</h1>
+                    <h1 class="text-lg font-bold text-blue-400">文藻 AI 虛擬助教</h1>
                     <div class="flex items-center gap-3">
                         <!-- 設定按鈕 -->
                         <button id="settings-btn" class="text-gray-400 hover:text-white transition-colors" title="設定 API Key">
@@ -58,22 +58,16 @@
                         <div id="status-light" class="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)] transition-colors" title="API狀態：未連線"></div>
                     </div>
                 </div>
-                <p class="text-xs text-gray-300">在 3D 場景中檢視您的虛擬化身。支援 VRM 0.0 與 1.0 格式。</p>
+                <p class="text-xs text-gray-300">支援語音對話與表情連動的 3D 虛擬化身互動展示。</p>
                 
-                <label class="w-full flex justify-center items-center px-3 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer transition-colors duration-200 shadow-md hover:shadow-blue-500/30 font-medium">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    <span>選擇 .vrm 檔案</span>
-                    <input type="file" id="vrm-upload" accept=".vrm" />
-                </label>
-
-                <div id="loading-status" class="mt-3 text-xs text-yellow-400 hidden flex items-center justify-center">
+                <div id="loading-status" class="mt-2 text-xs text-yellow-400 hidden flex items-center justify-center">
                     <svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     模型載入中...
                 </div>
-                <div id="error-status" class="mt-3 text-xs text-red-400 hidden text-center"></div>
+                <div id="error-status" class="mt-2 text-xs text-red-400 hidden text-center"></div>
             </div>
 
             <!-- 操作說明 -->
@@ -179,6 +173,24 @@
 
             // 7. 開始動畫迴圈
             animate();
+
+            // 8. 自動載入同目錄下的模型 (專為 Vercel 部署設定)
+            let modelPath = './AvatarSample_C.vrm';
+            
+            // 解決預覽環境 (blob:) 無法解析相對路徑的 TypeError 錯誤與外部 404 錯誤
+            if (window.location.protocol === 'blob:' || window.location.protocol === 'data:') {
+                // 在沙盒預覽環境直接攔截載入動作，顯示友善提示，避免任何網路請求報錯。
+                // 您的 Vercel 站台 (https://...) 會略過此判斷，正常載入模型！
+                const errorUI = document.getElementById('error-status');
+                document.getElementById('loading-status').classList.add('hidden');
+                errorUI.innerHTML = '【預覽模式】<br>沙盒環境限制讀取本地模型。<br>Vercel 部署已生效，請直接至 Vercel 網址觀看專屬角色！';
+                errorUI.classList.remove('text-red-400');
+                errorUI.classList.add('text-blue-300');
+                errorUI.classList.remove('hidden');
+                return; // 終止執行 loadVRM，徹底避免 404 報錯
+            }
+            
+            loadVRM(modelPath);
         }
 
         // --- 建立豐富的 3D 背景環境 ---
@@ -373,7 +385,7 @@
                 (error) => {
                     console.error('模型載入失敗:', error);
                     loadingUI.classList.add('hidden');
-                    errorUI.textContent = '模型載入失敗，請確認檔案是否為有效的 VRM 格式。';
+                    errorUI.textContent = '模型載入失敗，請確認檔案路徑或名稱是否正確。';
                     errorUI.classList.remove('hidden');
                 }
             );
@@ -477,19 +489,6 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-
-        // --- UI 事件監聽 ---
-        document.getElementById('vrm-upload').addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            // 透過 ObjectURL 建立本地檔案連結給載入器讀取
-            const url = URL.createObjectURL(file);
-            loadVRM(url);
-            
-            // 清除 input value 讓同一個檔案可以重複被觸發 onchange
-            event.target.value = '';
-        });
 
         // --- Gemini API 與對話邏輯 ---
         const chatInput = document.getElementById('chat-input');
