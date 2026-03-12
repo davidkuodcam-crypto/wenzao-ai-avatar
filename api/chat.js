@@ -1,82 +1,55 @@
-/**
- * 根據使用者成功範例修改的 api/chat.js
- * 1. 使用穩定版 gemini-2.5-flash 模型。
- * 2. 加入 https://wenzao-ai-avatar.vercel.app/ 至白名單。
- * 3. 支援 Google Search 工具。
- */
-
 export default async function handler(req, res) {
-  // ==========================================
-  // 1. CORS 安全防護設定 (白名單機制)
-  // ==========================================
-  const allowedOrigins = [
-    'https://wenzao-ai-avatar.vercel.app',   // 您的正式網址
-    'https://davidkuodcam-crypto.github.io', // 您的 GitHub Pages
-    'http://localhost:3000',
-    'http://127.0.0.1:5500'
-  ];
-
-  const requestOrigin = req.headers.origin;
-
-  if (allowedOrigins.includes(requestOrigin)) {
-    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
-  }
-
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  // ==========================================
-  // 2. 讀取 API KEY 與呼叫 Gemini
-  // ==========================================
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    console.error("Error: GEMINI_API_KEY is missing in Vercel env vars");
-    return res.status(500).json({ error: 'Vercel 環境變數中找不到 GEMINI_API_KEY。' });
-  }
-
-  try {
-    const GEMINI_MODEL = "gemini-2.5-flash"; 
-    const GOOGLE_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-    const requestBody = req.body;
-
-    // 強制啟用 Google Search 工具
-    if (!requestBody.tools) {
-        requestBody.tools = [{ google_search: {} }];
+    // 1. 設定 CORS 標頭，嚴格限制來源 (白名單)
+    const allowedOrigins = ['https://wenzao-ai-avatar.vercel.app'];
+    const origin = req.headers.origin;
+    
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (origin && origin.includes('localhost')) {
+        // 為了方便您在本地開發測試，也允許 localhost 來源
+        res.setHeader('Access-Control-Allow-Origin', origin);
     }
 
-    const response = await fetch(GOOGLE_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
+    res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, POST');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    const data = await response.json();
-
-    if (!response.ok) {
-        const googleError = data.error?.message || 'Unknown Gemini API Error';
-        return res.status(500).json({ error: `Google API Error: ${googleError}` });
+    // 2. 處理瀏覽器的預檢請求 (Preflight)
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
     }
 
-    // 依照範例回傳原始 Google 資料
-    return res.status(200).json(data);
+    // 只允許 POST 方法
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
 
-  } catch (error) {
-    console.error("Server Error:", error);
-    return res.status(500).json({ error: `Server Error: ${error.message}` });
-  }
+    // 3. 從 Vercel 環境變數讀取 API Key
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        console.error("錯誤: 找不到 GEMINI_API_KEY 環境變數");
+        return res.status(500).json({ error: '伺服器端環境變數設定錯誤' });
+    }
+
+    try {
+        // 4. 將前端傳來的請求內容轉發給 Gemini 2.5 Flash
+        const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(googleApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body) // 直接將前端傳來的歷史紀錄與系統提示轉發
+        });
+
+        const data = await response.json();
+
+        // 將 Google API 的回應轉發回給前端
+        if (!response.ok) {
+            return res.status(response.status).json(data);
+        }
+
+        return res.status(200).json(data);
+    } catch (error) {
+        console.error('向 Gemini API 請求時發生錯誤:', error);
+        return res.status(500).json({ error: '後端伺服器發生未預期的錯誤' });
+    }
 }
