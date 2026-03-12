@@ -43,12 +43,18 @@
             
             <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
             <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
-                <!-- 深藍色文字且粗細改為 font-medium -->
                 <p id="chat-text" class="text-lg text-blue-900 font-medium leading-relaxed drop-shadow-sm"></p>
             </div>
 
             <!-- 底部對話輸入框 -->
             <div class="flex gap-2 w-full">
+                <!-- 新增：語音輸入按鈕 -->
+                <button id="mic-btn" class="bg-white/20 hover:bg-white/30 backdrop-blur text-blue-900 px-3 py-3 rounded-xl shadow-inner border border-blue-900/10 transition-colors shrink-0 flex items-center justify-center" title="語音輸入">
+                    <svg id="mic-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </button>
+
                 <input type="text" id="chat-input" placeholder="與角色對話..." class="flex-1 bg-white/20 text-blue-900 placeholder-blue-800/50 px-4 py-3 rounded-xl border border-blue-900/10 focus:outline-none focus:border-blue-900/30 focus:bg-white/40 shadow-inner text-base transition-colors font-medium" />
                 <button id="send-btn" class="bg-blue-800/70 hover:bg-blue-700/80 backdrop-blur text-white px-5 py-3 rounded-xl shadow transition-colors font-bold text-base shrink-0">發送</button>
             </div>
@@ -102,9 +108,8 @@
 
         // 知識庫與設定變數
         let knowledgeBaseText = "";
-        // 強化實體意識與誠實原則
-        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。";
-        let openingPhrase = "您好！我是虛擬助教，有什麼我可以幫忙的嗎？";
+        let systemPromptText = "你是一個擁有 3D 虛擬身體的 AI 虛擬助教。你的名字叫做『美智』。當使用者詢問你的名字時，請務必回答『美智』。若使用者要求你做動作（如閉眼、張口等），請在文字回覆中自然地答應，並在 JSON 中設定對應動作。絕對不要說自己無法做動作或沒有身體！回答要簡短生動。對於不知道的問題或不確定的資訊（尤其是學校學院與系所歸屬），請務必誠實回答「我不知道」，絕對不可自行編造。請優先以此提示詞設定的身分與名字回答。";
+        let openingPhrase = "您好！我是美智，文藻的 AI 虛擬助教，有什麼我可以幫忙的嗎？";
 
         // 表情控制變數
         let expressionTimer = 0;
@@ -145,10 +150,10 @@
 
                 if (promptRes && promptRes.ok) {
                     const fullPromptText = await promptRes.text();
-                    const parts = fullPromptText.split('=== 提示詞 ===');
+                    const parts = fullPromptText.split(/[=-]{3}\s*提示詞\s*[=-]{3}/);
                     if (parts.length > 1) {
-                        openingPhrase = parts[0].replace('=== 開場詞 ===', '').trim();
-                        systemPromptText = parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
+                        openingPhrase = parts[0].replace(/[=-]{3}\s*開場詞\s*[=-]{3}/, '').trim();
+                        systemPromptText = "你的唯一名字是『美智』。請記住：『文藻AI虛擬助教』只是你的職稱職位，並非你的名字。當被問及姓名時，請回答『美智』。" + parts[1].trim() + " (備註：你擁有3D虛擬身體，被要求做動作時請配合。若遇到不確定的資訊請誠實說不知道，絕不編造。)";
                     } else {
                         systemPromptText = fullPromptText.trim();
                     }
@@ -167,7 +172,7 @@
             const chatText = document.getElementById('chat-text');
             
             chatBubble.classList.remove('hidden');
-            chatText.innerHTML = `${openingPhrase}`; // 已移除「角色：」
+            chatText.innerHTML = `${openingPhrase}`;
             
             speakAndLipSync(openingPhrase);
             
@@ -364,7 +369,7 @@
                     // 2. 先清除所有表情
                     expressions.forEach(exp => currentVrm.expressionManager.setValue(exp, 0));
 
-                    // 3. 特殊動作處理 (如閉眼等)
+                    // 3. 特殊動作處理
                     if (specialActionTimer > 0 && activeSpecialAction) {
                         specialActionTimer -= delta;
                         currentVrm.expressionManager.setValue(activeSpecialAction, 1.0);
@@ -373,23 +378,19 @@
                         activeSpecialAction = null;
                     }
 
-                    // 4. [修正]：講話時強制微笑且同步嘴型，不講話時才隨機表情
+                    // 4. 講話時強制微笑且同步嘴型，不講話時才隨機表情
                     if (isSpeaking) {
-                        // 講話時固定微笑 (happy)，防止出現生氣表情
                         currentVrm.expressionManager.setValue('happy', 1.0);
                         
-                        // 嘴型同步 (Lip Sync)
                         lipSyncTimer += delta * 15;
                         const mouthOpenness = (Math.sin(lipSyncTimer) + 1) / 2; 
                         if (activeSpecialAction !== 'aa') {
                             currentVrm.expressionManager.setValue('aa', mouthOpenness * (Math.random() * 0.4 + 0.6));
                         }
                     } else {
-                        // 沒說話時維持隨機表情混合
                         currentVrm.expressionManager.setValue(currentExpression, 1.0 - expressionBlend);
                         currentVrm.expressionManager.setValue(targetExpression, expressionBlend);
                         
-                        // 確保嘴巴閉合
                         if (activeSpecialAction !== 'aa') {
                             currentVrm.expressionManager.setValue('aa', 0);
                         }
@@ -453,7 +454,6 @@
 
             chatInput.value = '';
             chatBubble.classList.remove('hidden');
-            // 修改使用者提示樣式
             chatText.innerHTML = `<span class="text-blue-800 text-sm opacity-70">你：${text}</span><br><span class="text-blue-900/60 text-sm animate-pulse">正在思考中...</span>`;
             setStatus('connecting');
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
@@ -478,7 +478,6 @@
                 const aiText = data.candidates[0].content.parts[0].text;
                 let replyText = aiText;
                 
-                // 強大的 Regex 提取 JSON，並優先顯示 reply 欄位
                 const jsonMatch = aiText.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
@@ -502,7 +501,6 @@
                 }
 
                 setStatus('success');
-                // 更新顯示文字 (已移除 角色： 前綴)
                 chatText.innerHTML = `${replyText}`;
                 speakAndLipSync(replyText);
                 
@@ -580,10 +578,84 @@
         document.addEventListener('touchend', initialUnlock, { once: true });
         document.addEventListener('click', initialUnlock, { once: true });
 
+        // --- 語音輸入功能 (Web Speech API) ---
+        const micBtn = document.getElementById('mic-btn');
+        let recognition = null;
+        let isRecording = false;
+
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.interimResults = false; // 只取最終結果
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                // 改變麥克風按鈕外觀 (紅色呼吸燈)
+                micBtn.classList.remove('bg-white/20', 'text-blue-900');
+                micBtn.classList.add('bg-red-500/80', 'text-white', 'animate-pulse');
+                chatInput.placeholder = "聆聽中... (請說話)";
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                chatInput.value = transcript;
+            };
+
+            recognition.onerror = function(event) {
+                console.error("語音辨識錯誤:", event.error);
+                resetMicUI();
+                if (event.error === 'not-allowed') {
+                    alert('請允許麥克風權限才能使用語音輸入喔！');
+                }
+            };
+
+            recognition.onend = function() {
+                isRecording = false;
+                resetMicUI();
+                // 語音輸入結束後，若有文字則自動觸發發送
+                if (chatInput.value.trim() !== '') {
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                    unlockAudioForIOS();
+                    sendMessage();
+                }
+            };
+        } else {
+            // 不支援語音輸入的瀏覽器 (隱藏麥克風按鈕)
+            if(micBtn) micBtn.style.display = 'none';
+            console.warn("此瀏覽器不支援 Web Speech API 語音輸入");
+        }
+
+        function resetMicUI() {
+            if(!micBtn) return;
+            micBtn.classList.remove('bg-red-500/80', 'text-white', 'animate-pulse');
+            micBtn.classList.add('bg-white/20', 'text-blue-900');
+            chatInput.placeholder = "與角色對話...";
+        }
+
+        if (micBtn) {
+            micBtn.addEventListener('click', () => {
+                if (!recognition) return;
+                
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    // 解鎖音訊並中斷目前AI說話
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                    unlockAudioForIOS();
+                    recognition.start();
+                }
+            });
+        }
+
         // 隨時點擊發送都能打斷講話
         sendBtn.addEventListener('click', () => {
             window.speechSynthesis.cancel();
             isSpeaking = false;
+            if(isRecording && recognition) recognition.stop();
             unlockAudioForIOS();
             sendMessage();
         });
@@ -592,6 +664,7 @@
             if (e.key === 'Enter') {
                 window.speechSynthesis.cancel();
                 isSpeaking = false;
+                if(isRecording && recognition) recognition.stop();
                 unlockAudioForIOS();
                 sendMessage(); 
             }
