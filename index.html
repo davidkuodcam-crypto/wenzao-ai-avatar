@@ -2,8 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <!-- 針對行動裝置優化：禁止縮放，防止 iOS 點擊輸入框時自動放大畫面 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 虛擬助教</title>
+    <!-- 引入 Tailwind CSS 作為 UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 加入 touch-action: none 防止手機滑動時觸發下拉更新或返回手勢 */
@@ -17,6 +19,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 
+    <!-- 設定 Three.js 與 Three-VRM 的 Import Map -->
     <script type="importmap">
         {
             "imports": {
@@ -29,17 +32,24 @@
 </head>
 <body>
 
+    <!-- WebGL 渲染容器 -->
     <div id="canvas-container"></div>
 
+    <!-- UI 介面層 -->
     <div id="ui-layer" class="flex flex-col justify-end p-4 relative">
         
+        <!-- 底部中央對話整合容器 (極高透明度薄玻璃質感，包覆文字與輸入框) -->
         <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] sm:w-full max-w-lg pointer-events-auto flex flex-col gap-3 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-white/30 z-10 transition-all duration-300">
             
+            <!-- 對話氣泡窗 (預設隱藏，被透明面板完全包住) -->
             <div id="chat-bubble" class="hidden px-2 max-h-40 overflow-y-auto no-scrollbar">
+                <!-- 深藍色文字且粗細改為 font-medium -->
                 <p id="chat-text" class="text-lg text-blue-900 font-medium leading-relaxed drop-shadow-sm"></p>
             </div>
 
+            <!-- 底部對話輸入框 -->
             <div class="flex gap-2 w-full">
+                <!-- 新增：語音輸入按鈕 -->
                 <button id="mic-btn" class="bg-white/20 hover:bg-white/30 backdrop-blur text-blue-900 px-3 py-3 rounded-xl shadow-inner border border-blue-900/10 transition-colors shrink-0 flex items-center justify-center" title="語音輸入">
                     <svg id="mic-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
@@ -53,6 +63,7 @@
 
         <div class="flex justify-between items-end w-full">
             
+            <!-- 左下角：AI 虛擬助教面板 (目前隱藏) -->
             <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-4 rounded-xl shadow-xl border border-gray-700/50 max-w-xs pointer-events-auto flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <h1 class="text-lg font-bold text-blue-400">AI 虛擬助教</h1>
@@ -72,6 +83,7 @@
                 <div id="error-status" class="mt-3 text-xs text-red-400 hidden text-center"></div>
             </div>
 
+            <!-- 右下角：操作說明面板 (目前隱藏) -->
             <div class="hidden bg-gray-900/70 backdrop-blur-md text-white p-3 rounded-xl shadow-lg border border-gray-700/50 text-xs pointer-events-auto">
                 <h3 class="font-bold text-gray-200 mb-1 border-b border-gray-600 pb-1">操作說明</h3>
                 <ul class="space-y-1 text-gray-400">
@@ -125,10 +137,9 @@
                 let promptUrl = './prompt.txt';
                 let kbUrl = './knowledgebase.txt';
                 
-                // 【修改完成】指向 vtuber-3dgame.vercel.app
                 if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
-                    promptUrl = 'https://vtuber-3dgame.vercel.app/prompt.txt';
-                    kbUrl = 'https://vtuber-3dgame.vercel.app/knowledgebase.txt';
+                    promptUrl = 'https://wenzao-ai-avatar.vercel.app/prompt.txt';
+                    kbUrl = 'https://wenzao-ai-avatar.vercel.app/knowledgebase.txt';
                 }
 
                 const [promptRes, kbRes] = await Promise.all([
@@ -207,9 +218,8 @@
 
             let modelUrl = './AvatarSample_W.vrm';
             
-            // 【修改完成】指向 vtuber-3dgame.vercel.app
             if (window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent.goog')) {
-                modelUrl = 'https://vtuber-3dgame.vercel.app/AvatarSample_W.vrm';
+                modelUrl = 'https://wenzao-ai-avatar.vercel.app/AvatarSample_W.vrm';
             }
             
             loadVRM(modelUrl);
@@ -456,7 +466,7 @@
             conversationHistory.push({ role: "user", parts: [{ text: text }] });
             
             // 修正關鍵：在此處強制規定尋找答案的嚴格順序，解決 AI 隨機回答的行為
-            const fullSystemInstruction = `${systemPromptText}\n\n【回答資料來源優先順序】\n1. 優先使用下方的【知識庫內容】來回答。\n2. 若知識庫中找不到答案，請務必使用 Google Search 工具搜尋網路資訊。\n3. 若網路上也找不到，再使用你的內建知識庫。\n4. 若以上皆無明確資訊（尤其是學校科系相關問題），請誠實回答「我不知道」，絕不可自行編造。\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  "reply": "你的回覆內容",\n  "expression": "情緒(neutral, happy, angry, sad, relaxed, surprised)",\n  "specialAction": "動作(none, blink, blinkLeft, blinkRight, aa)",\n  "actionDuration": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
+            const fullSystemInstruction = `${systemPromptText}\n\n【回答資料來源優先順序】\n1. 優先使用下方的【知識庫內容】來回答。\n2. 若知識庫中找不到答案，請務必使用 Google Search 工具搜尋網路資訊。\n3. 若網路上也找不到，再使用你的內建知識庫。\n4. 若以上皆無明確資訊（尤其是學校科系相關問題），請誠實回答「我不知道」，絕不可自行編造。\n\n【重要指示】\n為了讓系統正確解析動作，請務必「只」回傳純 JSON 格式的文字，不要加上 \`\`\`json 標籤或任何其他說明。JSON 格式必須為：\n{\n  \"reply\": \"你的回覆內容\",\n  \"expression\": \"情緒(neutral, happy, angry, sad, relaxed, surprised)\",\n  \"specialAction\": \"動作(none, blink, blinkLeft, blinkRight, aa)\",\n  \"actionDuration\": 3\n}\n\n【知識庫內容】\n${knowledgeBaseText}`;
 
             try {
                 const response = await fetchWithBackoff(`/api/chat`, {
